@@ -1,7 +1,7 @@
 # PGDrome
 A FEniCS based python module of the Proper Generalized Decomposition (PGD) method. 
 
-# description
+# Description
 * The progressive PGD solver is implemented following publication such as 
 
 > "Recent advances and new challenges in the use of the proper generalized decomposition for solving multidimensional models."
@@ -27,17 +27,17 @@ A FEniCS based python module of the Proper Generalized Decomposition (PGD) metho
 # Install 
 * Using setup.py
 ```
-git clone ???
-cd ???
+git clone https://github.com/BAMresearch/PGDrome.git
+cd PGDrome
 python3 -m pip install -e .
 ```
 -e flag creates a symlink instead of copying it. So modifying does not require another installation.
 
-uninstall with `python3 -m pip uninstall ???` 
+uninstall with `python3 -m pip uninstall PGDrome` 
 
 test with pytest or standalone
 ```
-pytest ???/tests
+pytest tests
 ```
 
 # Conda environment with dolfin
@@ -62,7 +62,7 @@ plus fenicstools (see above)
 # Unittests & coverage
 
 ```
-pytest tests --cov=??? tests
+pytest tests --cov=PGDrome tests
 coverage html
 firefox htmlcov/index.html
 ```
