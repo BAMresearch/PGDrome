@@ -42,7 +42,7 @@ pytest tests
 
 # Conda environment with dolfin
 
-* dolfin
+* fenics (including dolfin)
 ```
 conda install -c conda-forge fenics mshr 
 ```
