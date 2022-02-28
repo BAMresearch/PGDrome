@@ -77,11 +77,11 @@ def problem_assemble_lhs(fct_F,var_F,Fs,meshes,dom,param,typ,dim):
 
 def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
     # problem discription right hand side of DGL for each fixed point problem
-    
+
     IC_r = param["IC_r"]
-    IC_s = param["IC_s"]  
+    IC_s = param["IC_s"]
     IC_Eta = param["IC_Eta"]
-    
+
     if typ == 'r':
         l = dolfin.Constant(dolfin.assemble(Q[1][0] * Fs[1] * dolfin.dx(meshes[1])) \
             * dolfin.assemble(Q[2][0] * Fs[2] * dolfin.dx(meshes[2]))) \
@@ -127,7 +127,7 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
             * param["rho"] * param["c_p"] * IC_Eta * var_F * dolfin.dx(meshes[2]) \
             - dolfin.Constant(dolfin.assemble(IC_r.dx(0) * Fs[0].dx(0) * dolfin.dx(meshes[0])) \
             * dolfin.assemble(IC_s * Fs[1] * dolfin.dx(meshes[1]))) \
-            * param["k"] * IC_Eta * var_F * dolfin.dx(meshes[2]) 
+            * param["k"] * IC_Eta * var_F * dolfin.dx(meshes[2])
         if nE > 0:
             for old in range(nE):
                 l +=- dolfin.Constant(dolfin.assemble(PGD_func[0][old] * Fs[0] * dolfin.dx(meshes[0])) \
@@ -135,7 +135,7 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
                     * param["rho"] * param["c_p"] * PGD_func[2][old] * var_F * dolfin.dx(meshes[2]) \
                     - dolfin.Constant(dolfin.assemble(PGD_func[0][old].dx(0) * Fs[0].dx(0) * dolfin.dx(meshes[0])) \
                     * dolfin.assemble(PGD_func[1][old] * Fs[1] * dolfin.dx(meshes[1]))) \
-                    * param["k"] * PGD_func[2][old] * var_F * dolfin.dx(meshes[2]) 
+                    * param["k"] * PGD_func[2][old] * var_F * dolfin.dx(meshes[2])
     return l
 
 def main(vs, writeFlag=False, name=None):
@@ -148,7 +148,7 @@ def main(vs, writeFlag=False, name=None):
     param.update({'IC_r': dolfin.interpolate(dolfin.Expression('1.0', degree=4),vs[0])})
     param.update({'IC_s': dolfin.interpolate(dolfin.Expression('(x[0] < 0.0 + 1E-8) ? 25 : 0', degree=4),vs[1])})
     param.update({'IC_Eta': dolfin.interpolate(dolfin.Expression('1.0', degree=4),vs[2])})
-    
+
     # define heat source in x, t and eta
     q1 = [dolfin.Expression('6*sqrt(3)*P / ((af+ar)*af*af*pow(pi,3/2)) * exp(-3*(pow(x[0]-xc,2)/pow(af,2)))', degree=4, P=2500, af=0.002, ar=0.002, xc=0.05)]
     q2 = [dolfin.interpolate(dolfin.Expression('1.0', degree=4),vs[1])]
@@ -217,7 +217,7 @@ class PGDproblem(unittest.TestCase):
         u_pgd = pgd_test.evaluate(0, [1, 2], [self.t, self.eta], 0)
 
         # import FEM solution
-        file_fem=os.path.join(os.path.dirname(__file__),"test_solver_rk4_data.dat")
+        file_fem=os.path.join(os.path.dirname(__file__),"test_thermo_data.dat")
         time, compareValues = np.loadtxt(file_fem,unpack=True)
         for i in range(time.__len__()):
             if dolfin.near(time[i],self.t,eps=1E-8):
