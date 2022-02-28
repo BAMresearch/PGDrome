@@ -14,7 +14,7 @@ import shutil
 
 import dolfin
 
-from pgd.model import PGD
+from pgdrome.model import PGD
 
 
 class TestPGD(unittest.TestCase):

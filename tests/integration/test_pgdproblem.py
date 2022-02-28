@@ -11,7 +11,7 @@ import unittest
 import dolfin
 import os
 
-from pgd.solver import PGDProblem1
+from pgdrome.solver import PGDProblem1
 
 def create_meshes(num_elem, ord, ranges):
     '''

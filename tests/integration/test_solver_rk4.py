@@ -12,19 +12,19 @@ import dolfin
 import os
 import numpy as np
 
-from pgd.solver import PGDProblem1
+from pgdrome.solver import PGDProblem1
 
 def vec_derivative(fct):
     '''
     :param fct: the function to derive
     :return: derivative of the function as a vector
     '''
-    
+
     dt = fct.function_space().mesh().hmin()
-    
+
     derivative = -np.diff(fct.vector()[:])/dt
     derivative = np.concatenate(([derivative[0]], derivative))
-    
+
     return derivative
 
 def fct_derivative(fct):
@@ -32,14 +32,14 @@ def fct_derivative(fct):
     :param fct: the function to derive
     :return: derivative of the function
     '''
-    
+
     fct_space = fct.function_space()
     dt = fct_space.mesh().hmin()
     fct_derivative = dolfin.Function(fct_space)
-    
+
     derivative = -np.diff(fct.vector()[:])/dt
     derivative = np.concatenate(([derivative[0]], derivative))
-    
+
     fct_derivative.vector()[:] = derivative[np.arange(len(derivative)-1,-1,-1)]
     return fct_derivative
 
@@ -91,19 +91,19 @@ def problem_assemble_lhs(fct_F,var_F,Fs,meshes,dom,param,typ,dim):
     if typ == 's':
         a = dolfin.assemble(Fs[0] * Fs[0] * dolfin.dx(meshes[0])) \
             * dolfin.assemble(Fs[2] * Fs[2] * dolfin.dx(meshes[2])) \
-            * param["rho"] * param["c_p"] 
+            * param["rho"] * param["c_p"]
     if typ == 'w':
         a = dolfin.assemble(Fs[0] * Fs[0] * dolfin.dx(meshes[0])) \
             * dolfin.assemble(fct_derivative(Fs[1]) * Fs[1] * dolfin.dx(meshes[1])) \
             * param["rho"] * param["c_p"] \
             + dolfin.assemble(Fs[0].dx(0) * Fs[0].dx(0) * dolfin.dx(meshes[0])) \
             * dolfin.assemble(Fs[1] * Fs[1] * dolfin.dx(meshes[1])) \
-            * param["k"]   
+            * param["k"]
     return a
 
 def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
     # problem discription right hand side of DGL for each fixed point problem
-    
+
     if typ == 'r':
         l = dolfin.Constant(dolfin.assemble(Q[1][0] * Fs[1] * dolfin.dx(meshes[1])) \
             * dolfin.assemble(Q[2][0] * Fs[2] * dolfin.dx(meshes[2])) )\
@@ -132,7 +132,7 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
             * param["rho"] * param["c_p"] * vec_derivative(Q[4][0]) \
             - dolfin.assemble(dolfin.inner(dolfin.grad(Q[3][0]), dolfin.grad(Fs[0])) * dolfin.dx(meshes[0])) \
             * dolfin.assemble(Q[5][0] * Fs[2] * dolfin.dx(meshes[2]))\
-            * param["k"] * Q[4][0].vector()[:] 
+            * param["k"] * Q[4][0].vector()[:]
         if nE > 0:
             for old in range(nE):
                 l[0] += - dolfin.assemble(PGD_func[0][old] * Fs[0] * dolfin.dx(meshes[0])) \
@@ -152,7 +152,7 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
             * param["rho"] * param["c_p"] * Q[5][0].vector()[:] \
             - dolfin.assemble(Q[3][0].dx(0) * Fs[0].dx(0) * dolfin.dx(meshes[0])) \
             * dolfin.assemble(Q[4][0] * Fs[1] * dolfin.dx(meshes[1])) \
-            * param["k"] * Q[5][0].vector()[:] 
+            * param["k"] * Q[5][0].vector()[:]
         if nE > 0:
             for old in range(nE):
                 l += - dolfin.assemble(PGD_func[0][old] * Fs[0] * dolfin.dx(meshes[0])) \
@@ -160,7 +160,7 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
                     * param["rho"] * param["c_p"] * PGD_func[2][old].vector()[:] \
                     - dolfin.assemble(PGD_func[0][old].dx(0) * Fs[0].dx(0) * dolfin.dx(meshes[0])) \
                     * dolfin.assemble(PGD_func[1][old] * Fs[1] * dolfin.dx(meshes[1]))\
-                    * param["k"] * PGD_func[2][old].vector()[:] 
+                    * param["k"] * PGD_func[2][old].vector()[:]
     return l
 
 def main(vs, writeFlag=False, name=None):
@@ -189,7 +189,7 @@ def main(vs, writeFlag=False, name=None):
                            param=param, rhs_fct=problem_assemble_rhs,
                            lhs_fct=problem_assemble_lhs, probs=prob, seq_fp=seq_fp,
                            PGD_nmax=PGD_nmax)
-    
+
     #pgd_prob.tol_fp_it = 1e-2
     pgd_prob.stop_fp = 'norm'
     pgd_prob.tol_fp_it = 0.01
@@ -236,14 +236,14 @@ class PGDproblem(unittest.TestCase):
     def test_standard_solver(self):
         # define meshes
         meshes, vs = create_meshes([400, 100, 10], self.ords, self.ranges)  # start meshes
-        
+
         # solve PGD problem
         pgd_test = main(vs, writeFlag=self.write, name='PGDsolution_O%i' % self.ord)
-        
+
         # evaluate
         # Merke für t=0 gibt dies nur den homogenen Teil, nicht den inhomogenen
         u_pgd = pgd_test.evaluate(0, [1, 2], [self.t, self.eta], 0)
-        
+
         # import FEM solution
         file_fem=os.path.join(os.path.dirname(__file__),"test_solver_rk4_data.dat")
         time, compareValues = np.loadtxt(file_fem,unpack=True)
@@ -251,18 +251,18 @@ class PGDproblem(unittest.TestCase):
             if dolfin.near(time[i],self.t,eps=1E-8):
                 compareValue = compareValues[i]
                 break
-        
+
         # compare solutions
         print('evaluate PGD', u_pgd(self.x), 'ref solution', compareValue)
         print('difference: ', np.abs(u_pgd(self.x)-compareValue))
         self.assertAlmostEqual(u_pgd(self.x), compareValue, places=2)
-        
+
         # plot solution
         import matplotlib.pyplot as plt
         temp = np.linspace(0,0.1,400)
         for i in temp:
             plt.plot(i, u_pgd(i), '.', label="Temperature at time %ss" % self.t)
-            
+
 if __name__ == '__main__':
     # import logging
     # logging.basicConfig(level=logging.DEBUG)

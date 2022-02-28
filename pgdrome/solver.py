@@ -4,7 +4,7 @@ import numpy as np
 
 import dolfin
 
-from pgd.model import PGD
+from pgdrome.model import PGD
 
 
 class PGDProblem1:
@@ -92,7 +92,7 @@ class PGDProblem1:
 
         self.simulation_info = 'PGD solver option: PGD_nmax %s / PGD tolerance %s and max FP iterations %s and FP tolerance %s; \n' % (
         self.PGD_nmax, self.PGD_tol, self.max_fp_it, self.tol_fp_it)
-        
+
         self.solve_mode =	{ # dictionary to decide which solver is used
             "FEM": "FEM",
             "RK": "RK4",
@@ -348,7 +348,7 @@ class PGDProblem1:
             for seq in range(len(self.seq_fp)):
                 # for dim in range(PGD_dim): # changed to seq possible to change the sequence of the problems
                 dim = self.seq_fp[seq]
-                
+
                 self.logger.debug("%s.problem for %s:", dim, self.prob[dim])
                 fct_F = dolfin.Function(self.V[dim])
                 var_F = dolfin.TestFunction(self.V[dim])
@@ -412,12 +412,12 @@ class PGDProblem1:
                         elif solve_modes[dim] == self.solve_mode["RK"]:
                             bc_tmp = self.bc[dim]
                             mesh_tmp = self.meshes[dim]
-                            fct_F = self.runge_kutta_4(a, l[0], l[1], mesh_tmp.coordinates()[0], mesh_tmp.coordinates()[-1], 
+                            fct_F = self.runge_kutta_4(a, l[0], l[1], mesh_tmp.coordinates()[0], mesh_tmp.coordinates()[-1],
                                                        (mesh_tmp.hmin()+mesh_tmp.hmax())/2, dim)
                         elif solve_modes[dim] == self.solve_mode["RKmapping"]:
                             bc_tmp = self.bc[dim]
                             mesh_tmp = self.meshes[dim]
-                            fct_F = self.runge_kutta_4_mapping(a, l[0], l[1], mesh_tmp.coordinates()[0], mesh_tmp.coordinates()[-1], 
+                            fct_F = self.runge_kutta_4_mapping(a, l[0], l[1], mesh_tmp.coordinates()[0], mesh_tmp.coordinates()[-1],
                                                        (mesh_tmp.hmin()+mesh_tmp.hmax())/2, dim)
                         elif solve_modes[dim] == self.solve_mode["direct"]:
                             fct_F = self.direct_solve(a, l, dim)
@@ -425,7 +425,7 @@ class PGDProblem1:
                             self.logger.error("ERROR: solver %s doesn't exist", solve_modes[dim])
                     else:
                         self.logger.debug('problem with boundary conditions')
-                        if solve_modes is None or solve_modes[dim] == self.solve_mode["FEM"]: # standard FEM solver  
+                        if solve_modes is None or solve_modes[dim] == self.solve_mode["FEM"]: # standard FEM solver
                             if _problem.lower() == 'nonlinear':
                                 bc_tmp = self.bc[dim]
                                 # print('check if we are here')
@@ -466,12 +466,12 @@ class PGDProblem1:
                         elif solve_modes[dim] == self.solve_mode["RK"]:
                             bc_tmp = self.bc[dim]
                             mesh_tmp = self.meshes[dim]
-                            fct_F = self.runge_kutta_4(a, l[0], l[1], mesh_tmp.coordinates()[0], mesh_tmp.coordinates()[-1], 
+                            fct_F = self.runge_kutta_4(a, l[0], l[1], mesh_tmp.coordinates()[0], mesh_tmp.coordinates()[-1],
                                                        (mesh_tmp.hmin()+mesh_tmp.hmax())/2, dim, bc_tmp.value().values()[0])
                         elif solve_modes[dim] == self.solve_mode["RKmapping"]:
                             bc_tmp = self.bc[dim]
                             mesh_tmp = self.meshes[dim]
-                            fct_F = self.runge_kutta_4_mapping(a, l[0], l[1], mesh_tmp.coordinates()[0], mesh_tmp.coordinates()[-1], 
+                            fct_F = self.runge_kutta_4_mapping(a, l[0], l[1], mesh_tmp.coordinates()[0], mesh_tmp.coordinates()[-1],
                                                        (mesh_tmp.hmin()+mesh_tmp.hmax())/2, dim, bc_tmp.value().values()[0])
                         elif solve_modes[dim] == self.solve_mode["direct"]:
                             fct_F = self.direct_solve(a, l, dim)
@@ -524,7 +524,7 @@ class PGDProblem1:
                 delta_norm_rel = delta_norm / norm_init
             else:
                 delta_norm_rel = delta_norm
-                
+
             # check convergence Fixed Point iteration
             self.logger.debug("Fixed point iteration %s: max.deltas=max(%s)=%s", fpi, delta, delta.max())
             self.logger.debug("Fixed point iteration %s: relative deltas in norms=%s (abs %s)", fpi, delta_norm_rel,
@@ -613,7 +613,7 @@ class PGDProblem1:
             compute Runge-Kutta-4 method for the time problem y(t)'=f(t,y(t))
         :param a: factor in front of the time derivative
         :param l: rhs without terms including y(t)
-        :param fac: factor in front of y(t) in the rhs 
+        :param fac: factor in front of y(t) in the rhs
         :param t0: starting time
         :param tmax: last time point
         :param dt: step size (creating an equidistant grid)
@@ -623,11 +623,11 @@ class PGDProblem1:
         '''
         # Order the vector correctly from t0 to tmax
         ltmp = np.copy(l[np.arange(len(l)-1,-1,-1)])
-        
+
         def rhs(t):
             return np.interp(t,time,ltmp)
-        
-        def f(S, t): 
+
+        def f(S, t):
             return (fac*S+rhs(t))/a
 
         def RK4_step(S, t, h):
@@ -636,29 +636,29 @@ class PGDProblem1:
  	        k3 = f(S+h/2*k2, t+h/2)
  	        k4 = f(S+h*k3, t+h)
  	        return h * (k1 + 2*k2 + 2*k3 + k4) / 6
-        
+
         # Initialise the time points and function
         time = np.arange(t0, tmax+1E-5, dt)
         fct_F = dolfin.Function(self.V[dim])
         vec = fct_F.vector()[:]
-        
+
         # Start the time stepping
         if ic != None:
             vec[0] = ic
         for t in time[0:-1]:
             vec[int(np.round((t+dt-t0)/dt,1))] = vec[int(np.round((t-t0)/dt,1))] \
                 + RK4_step(vec[int(np.round((t-t0)/dt,1))], t, dt)
-            
+
         # Reverse the sequence of the dofs
         fct_F.vector()[:] = vec[np.arange(len(vec)-1,-1,-1)]
         return fct_F
-    
+
     def runge_kutta_4_mapping(self, a, l, fac, r0, rmax, dr, dim, ic=None):
         '''
             compute Runge-Kutta-4 method for the time problem y(t)'=f(t,y(t))
         :param a: factor in front of the time derivative
         :param l: rhs without terms including y(t)
-        :param fac: factor in front of y(t) in the rhs 
+        :param fac: factor in front of y(t) in the rhs
         :param r0: starting time
         :param rmax: last time point
         :param dr: step size (creating an equidistant grid)
@@ -670,17 +670,17 @@ class PGDProblem1:
         # Define needed functions
         def convert_to_time(r):
             return (r-x0)/vel
-        
+
         def lhs(r):
             return np.interp(r,time_r,factmp)
-        
+
         def rhs(r):
             return np.interp(r,time_r,ltmp)
-        
+
         def factor(r):
             return np.interp(r,time_r,atmp)
-        
-        def f(S, t): 
+
+        def f(S, t):
             print((lhs(t)*S+rhs(t))/factor(t))
             return (lhs(t)*S+rhs(t))/factor(t)
 
@@ -690,7 +690,7 @@ class PGDProblem1:
             k3 = f(S+h/2*k2, t+h/2)
             k4 = f(S+h*k3, t+h)
             return h * (k1 + 2*k2 + 2*k3 + k4) / 6
-        
+
         # Create the real time interval
         x0 = 0.035
         vel = 0.93
@@ -698,32 +698,32 @@ class PGDProblem1:
         # tmax = (rmax-x0)/vel
         # dt = (rmax-r0)/self.meshes[dim].num_cells()
         # time_t = np.arange(t0, tmax+1E-8, dt)
-        
+
         # Order the vector correctly from r0 to rmax
         atmp = np.copy(a[np.arange(len(a)-1,-1,-1)])
         ltmp = np.copy(l[np.arange(len(l)-1,-1,-1)])
         factmp = np.copy(fac[np.arange(len(fac)-1,-1,-1)])
-        
+
         # Initialise the time points and function
         time_r = np.arange(r0, rmax+1E-8, dr)
         fct_F = dolfin.Function(self.V[dim])
         vec = fct_F.vector()[:]
-        
+
         # Start the time stepping
         if ic is not None:
             vec[0] = ic
         for r in time_r[0:-1]:
             vec[int(convert_to_time(np.round((r+dr-r0)/dr,1)))] = vec[int(convert_to_time(np.round((r-r0)/dr,1)))] \
                 + RK4_step(vec[int(convert_to_time(np.round((r-r0)/dr,1)))], r, dr)
-            
+
         # Reverse the sequence of the dofs since we calculate from t0 to tmax, but PGD is using it vice versa
         fct_F.vector()[:] = vec[np.arange(len(vec)-1,-1,-1)]
         return fct_F
-    
+
     def direct_solve(self, a, b, dim):
         '''
             compute the direct solution of the problem ax=b
-        :param a: left hand side 
+        :param a: left hand side
         :param l: right hand side
         :param dim: index of the corresponding function space
         :return: fct_F: new PGD function

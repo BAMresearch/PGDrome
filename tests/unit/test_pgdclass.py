@@ -12,7 +12,7 @@
 import unittest
 import numpy as np
 
-from pgd.model import PGD, PGDAttribute, PGDMesh
+from pgdrome.model import PGD, PGDAttribute, PGDMesh
 
 
 def analytic_u(x, E, L, A, n, lae):
