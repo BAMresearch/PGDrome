@@ -63,7 +63,7 @@ class PGDProblem1:
         self.lhs_fct = lhs_fct  # function which gives the left hand side (input=) and a flag if the PDE is in the strong form
 
         self.prob = probs  # list of problem strings e.g. ['r','s'] used in assemble fcts
-        if seq_fp == []:
+        if len(seq_fp) == 0:
             self.seq_fp = list(range(0, self.num_pgd_var))  # default sequence!!
         else:
             self.seq_fp = seq_fp  # list of sequence acoording probs for fp e.g. [0,1]
