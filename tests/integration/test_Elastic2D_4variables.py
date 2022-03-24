@@ -11,9 +11,7 @@ from dolfin import *
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-from pgdrome.solver import 
-
-# from relpgd.forward_models.pgd import PGDModel # Postpro
+from pgdrome.solver import PGDProblem1
 
 ###############################################################################
 ################################     INPUT     ################################
