@@ -17,7 +17,6 @@ from pgdrome.solver import PGDProblem1
 ################################     INPUT     ################################
 ###############################################################################
 
-
 # MESHES
 #==============================================================================
 # Mesh: Geometry
@@ -40,12 +39,6 @@ def create_meshes(mesh_0,V_X,input_mesh):
             aux_V = FunctionSpace(aux_mesh,input_mesh[k][2],input_mesh[k][3])
             meshes.append(aux_mesh) # Get out of the IF when k==0 is written
             Vs.append(aux_V) # Get out of the IF when k==0 is written
-    
-        elif len(input_mesh[k][0]) == 4:
-            Pmin = Point(input_mesh[k][0][::2])
-            Pmax = Point(input_mesh[k][0][1::2])
-            aux_mesh = RectangleMesh(Pmin, Pmax, input_mesh[k][1][0], input_mesh[k][1][1],'left')
-            aux_V = VectorFunctionSpace(aux_mesh,input_mesh[k][2],input_mesh[k][3])
     
         else:
             print("Error: Not well defined")
@@ -241,7 +234,7 @@ def main(Vs):
     # PGD input
     #-----------------------------
     
-    name_coord = ['X','A','E','P'] # Name variables: i)X: Possition ii)E: Elastic moulus REMOVE --> TO POSTPRO
+    name_coord = ['X','A','E','P']
 
     prob = ['r','s','t','v'] # problems according problem_assemble_fcts
     seq_prob = [0, 1, 2, 3] # default sequence of Fixed Point iteration
@@ -364,61 +357,3 @@ class PGDproblem(unittest.TestCase):
 if __name__ == '__main__':
 
     unittest.main()
-    
-###############################################################################
-###############################     POSTPRO     ###############################
-###############################################################################
-
-# for m in range(pgd_solution.numModes):
-#     ax1.plot(meshes[0].coordinates()[:],pgd_solution_normal.mesh[0].attributes[0].interpolationfct[m].vector()[:])
-
-# Plot modes of the variables:
-#-----------------------------
-# ax = [[], [], [], []]
-# fig, (ax[0], ax[1], ax[2]) = plt.subplots(1, pgd_solution.num_pgd_var-1)
-# for k in range(1,pgd_solution.num_pgd_var):
-#     for m in range(pgd_solution.numModes):    
-#         pgd_dof = pgd_solution.mesh[k].attributes[0].interpolationfct[m].vector()[:]
-#         x_dim = pgd_solution.mesh[k].attributes[0].interpolationfct[m].function_space().mesh().geometry().dim()
-#         x_dof = pgd_solution.mesh[k].attributes[0].interpolationfct[m].function_space().tabulate_dof_coordinates().reshape((-1, x_dim))[:,0]
-#         zipped_data = zip(x_dof, pgd_dof)
-#         temp = sorted(zipped_data, key =lambda x: x[0])
-#         X, Y = map(list, zip(*temp))
-#         ax[k-1].plot(X, Y)
-#     ax[k-1].set_title(name_coord[k])
-
-# for m in range(pgd_solution.numModes):    
-#     pgd_dof = pgd_solution.mesh[3].attributes[0].interpolationfct[m].vector()[:]
-#     x_dim = pgd_solution.mesh[3].attributes[0].interpolationfct[m].function_space().mesh().geometry().dim()
-#     x_dof = pgd_solution.mesh[3].attributes[0].interpolationfct[m].function_space().tabulate_dof_coordinates().reshape((-1, x_dim))[:,0]
-#     zipped_data = zip(x_dof, pgd_dof)
-#     temp = sorted(zipped_data, key =lambda x: x[0])
-#     X, Y = map(list, zip(*temp))
-#     plt.plot(X, Y,label='%s data' % m)
-    
-# plt.legend()
-# plt.show()
-     
-
-# Plot the results:
-#-----------------------------
-# import matplotlib.tri as tri
-
-# u_pgd = pgd_solution.evaluate(0, [1,2,3], [1,1,0.3], 0) # The last zero means to compute displacements
-# uuu = u_pgd.compute_vertex_values()
-# aaa=np.array([uuu[:121], uuu[121:]])
-
-# X0 = mesh_0.coordinates()
-# T = mesh_0.cells()
-
-# Xnew = X0 + aaa.T
-# scalars = uuu[121:]
-
-# triangulation_0 = tri.Triangulation(X0[:,0], X0[:,1], T)
-# plt.triplot(triangulation_0, '-k')
-# triangulation_1 = tri.Triangulation(Xnew[:,0], Xnew[:,1], T)
-# plt.triplot(triangulation_1, '--r')
-
-# plt.tricontourf(triangulation_1, scalars)
-# plt.colorbar()
-# plt.show()
