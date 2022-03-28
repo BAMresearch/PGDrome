@@ -345,6 +345,11 @@ class PGDProblem1:
         # fixed point iteration
         for fpi in range(self.max_fp_it):
 
+            self.logger.debug(f"##### Fixed_point iteration {fpi}:")
+            for i in range(len(Fs_init)):
+                self.logger.debug(f"Fs_{i}: {Fs_init[i].vector()[:]}")
+            # input()
+
             for seq in range(len(self.seq_fp)):
                 # for dim in range(PGD_dim): # changed to seq possible to change the sequence of the problems
                 dim = self.seq_fp[seq]
@@ -353,8 +358,8 @@ class PGDProblem1:
                 fct_F = dolfin.Function(self.V[dim])
                 var_F = dolfin.TestFunction(self.V[dim])
 
-                # if (len(np.where(norm_Fs < 1e-25)[0]) > 0):
-                if (len(np.where(norm_Fs < 1e-8)[0]) > 0):
+                if (len(np.where(norm_Fs < 1e-25)[0]) > 0):
+                # if (len(np.where(norm_Fs < 1e-8)[0]) > 0):
                     self.logger.debug(
                         "one enrichment basis vanish --> DGL not possible to solve -> solution set to Zero! normFs=%s",
                         norm_Fs)
@@ -542,12 +547,12 @@ class PGDProblem1:
                     self.logger.error(
                         "ERROR: fix point iteration in maximum number of iterations NOT converged (enrichment loop %s)",
                         n_enr)
-                    input('press enter to continue')
+                    self.simulation_info += f'<<<enrichment step {n_enr} fixed point iteration NOT converged in {fpi + 1} / delta: {delta} >>>\n'
+                    # input('press enter to continue')
                     break
                 else:
                     self.logger.info("fix point iteration converged !!! in number of steps: %s (delta:%s)", fpi + 1,delta)
-                    self.simulation_info += 'enrichment step %s fixed point iteration converged in %s steps \n' % (
-                    n_enr, fpi + 1)
+                    self.simulation_info += f'enrichment step {n_enr} fixed point iteration converged in {fpi + 1} / delta: {delta} \n'
                     break
             elif self.stop_fp.lower() == 'norm':
                 # tol_abs = self.tol_fp_it
@@ -555,8 +560,7 @@ class PGDProblem1:
                 if (delta_norm_rel < self.tol_fp_it or delta_norm < self.tol_abs):
                     self.logger.info("fix point iteration converged !!! in number of steps: %s (delta norm rel %s, abs: %s, init: %s)",
                                      fpi + 1, delta_norm_rel,delta_norm, norm_init)
-                    self.simulation_info += 'enrichment step %s fixed point iteration converged in %s steps \n' % (
-                        n_enr, fpi + 1)
+                    self.simulation_info += f'enrichment step {n_enr} fixed point iteration converged in {fpi+1} / norms: {delta_norm_rel},{delta_norm} \n'
                     break
                 elif (fpi < self.max_fp_it - 1):
                     self.logger.debug("fix point iteration not converged %s (max %s) (delta norm rel %s, abs: %s, init: %s)",
@@ -567,7 +571,8 @@ class PGDProblem1:
                     self.logger.error(
                         "ERROR: fix point iteration in maximum number of iterations NOT converged (enrichment loop %s) (delta norm rel %s, abs: %s, init: %s)",
                         n_enr, delta_norm_rel, delta_norm, norm_init)
-                    input('press enter to continue')
+                    self.simulation_info += f'<<<enrichment step {n_enr} fixed point iteration NOT converged in {fpi + 1} / norms: {delta_norm_rel},{delta_norm} >>>\n'
+                    # input('press enter to continue')
                     break
                 else:
                     self.logger.error( "ERROR:  something got wrong!!!")
