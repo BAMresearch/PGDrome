@@ -27,6 +27,7 @@ jobs:
         python3 -m pip install .
 
     - name: Run tests
+      shell: bash -l {0}
       run: |
         python3 tests/unit/test_autotest.py
         pytest tests/unit/test_autotest.py
