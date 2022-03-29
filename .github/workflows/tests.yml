@@ -22,17 +22,10 @@ jobs:
         auto-update-conda: true
         environment-file: environment.yml
 
-#    - name: Install module
-#      run: |
-#        python3 -m pip install .
-
     - name: Run tests
-      shell: bash -l {0}
+      shell: bash -l {0} #new shell
+# install pgdrome module AND run tests
       run: |
         python3 -m pip install .
-        pytest tests/unit/test_autotest.py
-        pytest tests/integration/test_elastic.py
+        pytest
 
-
-# python3 tests/unit/test_autotest.py
-# pytest
