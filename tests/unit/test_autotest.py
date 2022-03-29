@@ -3,6 +3,7 @@
 '''
 
 import unittest
+import pgdrome
 
 class Test(unittest.TestCase):
     def setUp(self):
