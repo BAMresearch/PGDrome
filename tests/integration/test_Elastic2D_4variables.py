@@ -277,8 +277,8 @@ def main(Vs):
     #-----------------------------
     pgd_prob.stop_fp='norm'
     # pgd_prob.max_fp_it = 5
-    pgd_prob.tol_fp_it = 1e-1
-    pgd_prob.tol_abs = 1e-3
+    # pgd_prob.tol_fp_it = 1e-1
+    # pgd_prob.tol_abs = 1e-3
     pgd_prob.solve_PGD(_problem='linear')
     
     pgd_solution = pgd_prob.return_PGD()  # as forward model withe evaluate_output e.g for coupling with reliability algorithms
