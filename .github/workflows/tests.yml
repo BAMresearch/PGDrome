@@ -22,13 +22,14 @@ jobs:
         auto-update-conda: true
         environment-file: environment.yml
 
-    - name: Install module
-      run: |
-        python3 -m pip install .
+#    - name: Install module
+#      run: |
+#        python3 -m pip install .
 
     - name: Run tests
       shell: bash -l {0}
       run: |
+        python3 -m pip install .
         pytest tests/unit/test_autotest.py
         pytest tests/integration/test_elastic.py
 
