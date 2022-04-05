@@ -70,7 +70,7 @@ class TestPGD(unittest.TestCase):
         pgd_load.mesh[0].attributes[0].interpolationInfo = {'name': 1, 'family': 'CG', 'degree': 1, '_type': 'scalar'}
         pgd_load.mesh[1].attributes[0].interpolationInfo = {'name': 1, 'family': 'CG', 'degree': 1, '_type': 'scalar'}
         pgd_load.mesh[2].attributes[0].interpolationInfo = {'name': 1, 'family': 'CG', 'degree': 2, '_type': 'scalar'}
-        pgd_load.mesh[1].attributes[0].print_info()
+        # pgd_load.mesh[1].attributes[0].print_info()
 
         pgd_load.create_interpolation_fcts([0, 1, 2], 0)
 

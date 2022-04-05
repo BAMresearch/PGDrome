@@ -23,7 +23,7 @@ A FEniCS based python module of the Proper Generalized Decomposition (PGD) metho
 # Requirements
 * A working installation of FEniCS (including DOLFIN python interface).
 * e.g. via conda s. below
-
+ 
 # Conda environment with dolfin
 
 * fenics (including dolfin)
