@@ -297,7 +297,6 @@ class PGDproblem(unittest.TestCase):
     def TearDown(self):
         pass
 
-    @pytest.mark.skip(reason="not working in the moment")
     def test_solver(self):
         
         # MESH
