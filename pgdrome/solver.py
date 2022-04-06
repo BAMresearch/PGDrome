@@ -227,7 +227,7 @@ class PGDProblem1:
 
         return Fs_init
 
-    def solve_PGD(self, _problem='nonlinear', solve_modes=None, settings=None):
+    def solve_PGD(self, _problem='nonlinear', solve_modes=None, settings={"linear_solver":"mumps"}):
         '''
             create PGD solution enrichment loop calling fixed point iteration
             :param: _problem: select variationalSolver linear or nonlinear
@@ -394,13 +394,8 @@ class PGDProblem1:
                                                                          form_compiler_parameters=ffc_options)
                                 solver = dolfin.NonlinearVariationalSolver(problem)
                                 prm = solver.parameters
-                                if settings is None:
-                                    prm["newton_solver"]["linear_solver"] = "mumps"  # "direct" #"gmres"
-                                    prm["newton_solver"]["relative_tolerance"] = 1e-8
-                                    # prm["newton_solver"]["absolute_tolerance"] = 1e-9
-                                else:
-                                    for setting in settings:
-                                        prm["newton_solver"][setting] = settings[setting]                           
+                                for key, value in settings.items():
+                                    prm["newton_solver"][key] = value                     
                                 solver.solve()
                             elif _problem.lower() == 'linear':
                                 # alternative use linear solver:
@@ -418,11 +413,8 @@ class PGDProblem1:
 
                                 solver = dolfin.LinearVariationalSolver(problem)
                                 prm = solver.parameters
-                                if settings is None:
-                                    prm["linear_solver"] = "mumps"  # "direct" #"gmres"
-                                else:
-                                    for setting in settings:
-                                        prm[setting] = settings[setting]
+                                for key, value in settings.items():
+                                    prm[key] = value
                                 solver.solve()
                         elif solve_modes[dim] == self.solve_mode["direct"]:
                             fct_F = self.direct_solve(a, l, dim)
@@ -448,13 +440,8 @@ class PGDProblem1:
 
                                 solver = dolfin.NonlinearVariationalSolver(problem)
                                 prm = solver.parameters
-                                if settings is None:
-                                    prm["newton_solver"]["linear_solver"] = "mumps"  # "direct" #"gmres"
-                                    prm["newton_solver"]["relative_tolerance"] = 1e-8
-                                    # prm["newton_solver"]["absolute_tolerance"] = 1e-9
-                                else:
-                                    for setting in settings:
-                                        prm["newton_solver"][setting] = settings[setting]      
+                                for key, value in settings.items():
+                                    prm["newton_solver"][key] = value
                                 solver.solve()
                             elif _problem.lower() == 'linear':
                                 # alternative use linear solver:
@@ -470,11 +457,8 @@ class PGDProblem1:
 
                                 solver = dolfin.LinearVariationalSolver(problem)
                                 prm = solver.parameters
-                                if settings is None:
-                                    prm["linear_solver"] = "mumps"  # "direct" #"gmres"
-                                else:
-                                    for setting in settings:
-                                        prm[setting] = settings[setting]
+                                for key, value in settings.items():
+                                    prm[key] = value
                                 solver.solve()
                         elif solve_modes[dim] == self.solve_mode["direct"]:
                             fct_F = self.direct_solve(a, l, dim)
