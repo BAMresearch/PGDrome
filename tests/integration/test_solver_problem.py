@@ -275,7 +275,7 @@ def main_normal(vs, params, writeFlag=False, name='PGDsolution', problem='linear
         :return: PGDModel and PGDProblem1
     '''
 
-    PGD_nmax = 10  # PGD enrichment number (max number of PGD modes per coordinate)
+    PGD_nmax = 7  # PGD enrichment number (max number of PGD modes per coordinate)
     prob = ['r', 's', 't', 'v']  # Reihenfolge !! PGD_dim
     seq_fp = [0, 1, 2, 3]  # default reihenfolge => prob
 
@@ -325,15 +325,15 @@ def main_normal(vs, params, writeFlag=False, name='PGDsolution', problem='linear
                            probs=prob, seq_fp=seq_fp, PGD_nmax=PGD_nmax)
 
     # solve displacement problem
-    pgd_prob.max_fp_it = 5
-    pgd_prob.stop_fp = 'norm' #'delta'
-    pgd_prob.tol_fp_it = 1e-5
-    pgd_prob.tol_abs = 1e-4
+    # pgd_prob.max_fp_it = 15
+    # pgd_prob.stop_fp = 'norm' #'delta'
+    # pgd_prob.tol_fp_it = 1e-8
+    # pgd_prob.tol_abs = 1e-4
     pgd_prob.solve_PGD(_problem=problem)  # solve normal
 
 
     # print('computed:', pgd_prob.name, pgd_prob.amplitude)
-    # print(pgd_prob.simulation_info)
+    print(pgd_prob.simulation_info)
 
     pgd_solution = pgd_prob.return_PGD()
 
@@ -423,7 +423,7 @@ class TestSolverProblem(unittest.TestCase):
         # solve PGD problem with nonlinear solver
         pgd_prob_nl, pgd_s_nl = main_normal([v_x] + v_e, self.params, writeFlag=self.write, name='PGDsolution', problem='nonlinear')
 
-        # # check solver convergences
+        # # check solver convergences / modes because after nonlinear solver == 0
         print('PGD amplitudes', pgd_prob_lin.amplitude, pgd_prob_nl.amplitude)
         amplitude_diff_max = (np.array(pgd_prob_lin.amplitude) - np.array(pgd_prob_nl.amplitude)).max()
         print(amplitude_diff_max)
@@ -433,9 +433,11 @@ class TestSolverProblem(unittest.TestCase):
         pgd = pgd_s_lin.evaluate(0, [1, 2, 3], [self.p, self.E, self.nu], 0)
         fem_ref = FEM_reference(v_x, self.params, [self.p,self.E,self.nu])
         print('ref', fem_ref(self.x),'pgd',pgd(self.x))
-        error = np.linalg.norm(np.array(pgd(self.x)-fem_ref(self.x)))/np.linalg.norm(fem_ref(self.x))
-        # print(error)
-        self.assertTrue(error < 5e-5)
+        error_point = np.linalg.norm(np.array(pgd(self.x)-fem_ref(self.x)))/np.linalg.norm(fem_ref(self.x))
+        errorL2 = np.linalg.norm(pgd.compute_vertex_values()[:] - fem_ref.compute_vertex_values()[:], 2) / np.linalg.norm(fem_ref.compute_vertex_values()[:], 2)
+        print(error_point, errorL2)
+        self.assertTrue(error_point < 2*pgd_prob_lin.amplitude[-2])
+        self.assertTrue(errorL2 < 2 * pgd_prob_lin.amplitude[-2])
 
 
 
