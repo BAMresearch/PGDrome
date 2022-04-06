@@ -358,140 +358,127 @@ class PGDProblem1:
                 fct_F = dolfin.Function(self.V[dim])
                 var_F = dolfin.TestFunction(self.V[dim])
 
-                if (len(np.where(norm_Fs < 1e-25)[0]) > 0):
-                # if (len(np.where(norm_Fs < 1e-8)[0]) > 0):
-                    self.logger.debug(
-                        "one enrichment basis vanish --> DGL not possible to solve -> solution set to Zero! normFs=%s",
-                        norm_Fs)
-                    Fs[dim] = Fs_null[dim]
-                    # print('Fs[dim]',len(Fs[dim].compute_vertex_values()[:]))
-                    # compute norm and delta
-                    delta[dim] = np.absolute(
-                        Fs[dim].compute_vertex_values() - Fs_init[dim].compute_vertex_values()).max()
-                    norm_Fs[dim] = dolfin.norm(Fs[dim])  # classical L2 norm
+                # define DGL
+                a = self.lhs_fct(fct_F, var_F, Fs, self.meshes, self.dom, self.param, self.prob[dim], dim)
+                l = self.rhs_fct(fct_F, var_F, Fs, self.meshes, self.dom, self.param, self.load, self.PGD_func,
+                                 self.prob[dim], n_enr, dim)
 
+               # self.logger.debug('check RHS %s', dolfin.assemble(l)[:])
+
+                if self.bc[dim] == 0:
+                    self.logger.debug('problem without boundary conditions')
+                    if solve_modes is None or solve_modes[dim] == self.solve_mode["FEM"]: # standard FEM solver
+                        if _problem.lower() == 'nonlinear':
+                            # dolfin.solve(a - l == 0, Fs[dim])
+                            J = dolfin.derivative(a - l, fct_F)
+                            # # check condition number
+                            # JJ = dolfin.assemble(J)
+                            # print('condition number', np.linalg.cond(JJ.array()[:][:]))
+                            problem = dolfin.NonlinearVariationalProblem(a - l, fct_F,
+                                                                     J=J,
+                                                                     form_compiler_parameters=ffc_options)
+                            solver = dolfin.NonlinearVariationalSolver(problem)
+                            prm = solver.parameters
+                            prm["newton_solver"]["linear_solver"] = "mumps"  # "direct" #"gmres"
+                            # prm["newton_solver"]["relative_tolerance"] = 1e-8
+                            # prm["newton_solver"]["absolute_tolerance"] = 1e-9
+                            solver.solve()
+                        elif _problem.lower() == 'linear':
+                            # alternative use linear solver:
+                            fct_F = dolfin.TrialFunction(self.V[dim])
+                            a = self.lhs_fct(fct_F, var_F, Fs, self.meshes, self.dom, self.param, self.prob[dim], dim)
+                            l = self.rhs_fct(fct_F, var_F, Fs, self.meshes, self.dom, self.param, self.load,
+                                         self.PGD_func,
+                                         self.prob[dim], n_enr, dim)
+                            # AA = dolfin.assemble(a)
+                            # # print('matrix',AA.array()[:][:])
+                            # print('condition number', np.linalg.cond(AA.array()[:][:]))
+
+                            fct_F = dolfin.Function(self.V[dim])
+                            problem = dolfin.LinearVariationalProblem(a, l, fct_F, form_compiler_parameters=ffc_options)
+
+                            solver = dolfin.LinearVariationalSolver(problem)
+                            prm = solver.parameters
+                            prm["linear_solver"] = "mumps"  # "direct" #"gmres"
+                            solver.solve()
+                    elif solve_modes[dim] == self.solve_mode["direct"]:
+                        fct_F = self.direct_solve(a, l, dim)
+                    else:
+                        self.logger.error("ERROR: solver %s doesn't exist", solve_modes[dim])
                 else:
-                    # define DGL
-                    a = self.lhs_fct(fct_F, var_F, Fs, self.meshes, self.dom, self.param, self.prob[dim], dim)
-                    l = self.rhs_fct(fct_F, var_F, Fs, self.meshes, self.dom, self.param, self.load, self.PGD_func,
-                                     self.prob[dim], n_enr, dim)
+                    self.logger.debug('problem with boundary conditions')
+                    if solve_modes is None or solve_modes[dim] == self.solve_mode["FEM"]: # standard FEM solver
+                        if _problem.lower() == 'nonlinear':
+                            bc_tmp = self.bc[dim]
+                            # print('check if we are here')
+                            J = dolfin.derivative(a - l, fct_F)
+                            # print('or here')
+                            # # check condition number
+                            # JJ = dolfin.assemble(J)
+                            # print('JJ',JJ.array()[:][:])
+                            # print('condition number', np.linalg.cond(JJ.array()[:][:]))
+                            problem = dolfin.NonlinearVariationalProblem(a - l, fct_F, bcs=bc_tmp,
+                                                                     J=J,
+                                                                     form_compiler_parameters=ffc_options)
+                            # problem = dolfin.NonlinearVariationalProblem(a - l, fct_F, bcs=bc_tmp, J=dolfin.derivative(a - l, fct_F),
+                            #                                              form_compiler_parameters=ffc_options)
 
-                   # self.logger.debug('check RHS %s', dolfin.assemble(l)[:])
+                            solver = dolfin.NonlinearVariationalSolver(problem)
+                            prm = solver.parameters
+                            prm["newton_solver"]["linear_solver"] = "mumps"  # "direct" #"gmres"
+                            prm["newton_solver"]["relative_tolerance"] = 1e-8
+                            # prm["newton_solver"]["absolute_tolerance"] = 1e-9
+                            solver.solve()
+                        elif _problem.lower() == 'linear':
+                            # alternative use linear solver:
+                            fct_F = dolfin.TrialFunction(self.V[dim])
+                            a = self.lhs_fct(fct_F, var_F, Fs, self.meshes, self.dom, self.param, self.prob[dim], dim)
+                            l = self.rhs_fct(fct_F, var_F, Fs, self.meshes, self.dom, self.param, self.load,
+                                         self.PGD_func,
+                                         self.prob[dim], n_enr, dim)
+                            bc_tmp = self.bc[dim]
 
-                    if self.bc[dim] == 0:
-                        self.logger.debug('problem without boundary conditions')
-                        if solve_modes is None or solve_modes[dim] == self.solve_mode["FEM"]: # standard FEM solver
-                            if _problem.lower() == 'nonlinear':
-                                # dolfin.solve(a - l == 0, Fs[dim])
-                                J = dolfin.derivative(a - l, fct_F)
-                                # # check condition number
-                                # JJ = dolfin.assemble(J)
-                                # print('condition number', np.linalg.cond(JJ.array()[:][:]))
-                                problem = dolfin.NonlinearVariationalProblem(a - l, fct_F,
-                                                                         J=J,
-                                                                         form_compiler_parameters=ffc_options)
-                                solver = dolfin.NonlinearVariationalSolver(problem)
-                                prm = solver.parameters
-                                prm["newton_solver"]["linear_solver"] = "mumps"  # "direct" #"gmres"
-                                prm["newton_solver"]["relative_tolerance"] = 1e-8
-                                # prm["newton_solver"]["absolute_tolerance"] = 1e-9
-                                solver.solve()
-                            elif _problem.lower() == 'linear':
-                                # alternative use linear solver:
-                                fct_F = dolfin.TrialFunction(self.V[dim])
-                                a = self.lhs_fct(fct_F, var_F, Fs, self.meshes, self.dom, self.param, self.prob[dim], dim)
-                                l = self.rhs_fct(fct_F, var_F, Fs, self.meshes, self.dom, self.param, self.load,
-                                             self.PGD_func,
-                                             self.prob[dim], n_enr, dim)
-                                # AA = dolfin.assemble(a)
-                                # # print('matrix',AA.array()[:][:])
-                                # print('condition number', np.linalg.cond(AA.array()[:][:]))
+                            fct_F = dolfin.Function(self.V[dim])
+                            problem = dolfin.LinearVariationalProblem(a, l, fct_F, bc_tmp,form_compiler_parameters=ffc_options)
 
-                                fct_F = dolfin.Function(self.V[dim])
-                                problem = dolfin.LinearVariationalProblem(a, l, fct_F, form_compiler_parameters=ffc_options)
-
-                                solver = dolfin.LinearVariationalSolver(problem)
-                                prm = solver.parameters
-                                prm["linear_solver"] = "mumps"  # "direct" #"gmres"
-                                solver.solve()
-                        elif solve_modes[dim] == self.solve_mode["direct"]:
-                            fct_F = self.direct_solve(a, l, dim)
-                        else:
-                            self.logger.error("ERROR: solver %s doesn't exist", solve_modes[dim])
+                            solver = dolfin.LinearVariationalSolver(problem)
+                            prm = solver.parameters
+                            prm["linear_solver"] = "mumps"  # "direct" #"gmres"
+                            solver.solve()
+                    elif solve_modes[dim] == self.solve_mode["direct"]:
+                        fct_F = self.direct_solve(a, l, dim)
                     else:
-                        self.logger.debug('problem with boundary conditions')
-                        if solve_modes is None or solve_modes[dim] == self.solve_mode["FEM"]: # standard FEM solver
-                            if _problem.lower() == 'nonlinear':
-                                bc_tmp = self.bc[dim]
-                                # print('check if we are here')
-                                J = dolfin.derivative(a - l, fct_F)
-                                # print('or here')
-                                # # check condition number
-                                # JJ = dolfin.assemble(J)
-                                # print('JJ',JJ.array()[:][:])
-                                # print('condition number', np.linalg.cond(JJ.array()[:][:]))
-                                problem = dolfin.NonlinearVariationalProblem(a - l, fct_F, bcs=bc_tmp,
-                                                                         J=J,
-                                                                         form_compiler_parameters=ffc_options)
-                                # problem = dolfin.NonlinearVariationalProblem(a - l, fct_F, bcs=bc_tmp, J=dolfin.derivative(a - l, fct_F),
-                                #                                              form_compiler_parameters=ffc_options)
+                        self.logger.error("ERROR: solver %s doesn't exist", solve_modes[dim])
 
-                                solver = dolfin.NonlinearVariationalSolver(problem)
-                                prm = solver.parameters
-                                prm["newton_solver"]["linear_solver"] = "mumps"  # "direct" #"gmres"
-                                prm["newton_solver"]["relative_tolerance"] = 1e-8
-                                # prm["newton_solver"]["absolute_tolerance"] = 1e-9
-                                solver.solve()
-                            elif _problem.lower() == 'linear':
-                                # alternative use linear solver:
-                                fct_F = dolfin.TrialFunction(self.V[dim])
-                                a = self.lhs_fct(fct_F, var_F, Fs, self.meshes, self.dom, self.param, self.prob[dim], dim)
-                                l = self.rhs_fct(fct_F, var_F, Fs, self.meshes, self.dom, self.param, self.load,
-                                             self.PGD_func,
-                                             self.prob[dim], n_enr, dim)
-                                bc_tmp = self.bc[dim]
+                self.logger.debug("problem %s: F_%s_max: %s", self.prob[dim], str(dim),
+                                  np.absolute(fct_F.vector()[:]).max())
+                self.logger.debug("problem %s: Finit_%s: %s =? %s", self.prob[dim], str(dim),
+                                  Fs_init[dim].vector()[:], Fs[dim].vector()[:])
+                self.logger.debug("problem %s: Fs-Fs_init: %s", self.prob[dim],
+                                  fct_F.vector()[:] - Fs_init[dim].vector()[:])
 
-                                fct_F = dolfin.Function(self.V[dim])
-                                problem = dolfin.LinearVariationalProblem(a, l, fct_F, bc_tmp,form_compiler_parameters=ffc_options)
+                # compute norm and delta
+                Fs[dim] = fct_F
+                norm_Fs[dim] = dolfin.norm(Fs[dim])  # classical L2 norm
 
-                                solver = dolfin.LinearVariationalSolver(problem)
-                                prm = solver.parameters
-                                prm["linear_solver"] = "mumps"  # "direct" #"gmres"
-                                solver.solve()
-                        elif solve_modes[dim] == self.solve_mode["direct"]:
-                            fct_F = self.direct_solve(a, l, dim)
-                        else:
-                            self.logger.error("ERROR: solver %s doesn't exist", solve_modes[dim])
+                ### NEW correction
+                delta_tmp = np.absolute(Fs[dim].vector()[:] - Fs_init[dim].vector()[:])
+                max_index = np.argmax(delta_tmp)
+                if np.absolute(Fs[dim].vector()[max_index]) < 1e-3:
+                    delta[dim] = delta_tmp.max()
+                else:
+                    delta[dim] = delta_tmp.max() / np.absolute(Fs[dim].vector()[max_index])
 
-                    self.logger.debug("problem %s: F_%s_max: %s", self.prob[dim], str(dim),
-                                      np.absolute(fct_F.vector()[:]).max())
-                    self.logger.debug("problem %s: Finit_%s: %s =? %s", self.prob[dim], str(dim),
-                                      Fs_init[dim].vector()[:], Fs[dim].vector()[:])
-                    self.logger.debug("problem %s: Fs-Fs_init: %s", self.prob[dim],
-                                      fct_F.vector()[:] - Fs_init[dim].vector()[:])
-
-                    # compute norm and delta
-                    Fs[dim] = fct_F
-                    norm_Fs[dim] = dolfin.norm(Fs[dim])  # classical L2 norm
-
-                    ### NEW correction
-                    delta_tmp = np.absolute(Fs[dim].vector()[:] - Fs_init[dim].vector()[:])
-                    max_index = np.argmax(delta_tmp)
-                    if np.absolute(Fs[dim].vector()[max_index]) < 1e-3:
-                        delta[dim] = delta_tmp.max()
-                    else:
-                        delta[dim] = delta_tmp.max() / np.absolute(Fs[dim].vector()[max_index])
-
-                    # OLD used for paper
-                    # norm_init = dolfin.norm(Fs_init[dim])
-                    # if norm_Fs[dim] < 1e-8:
-                    #     delta[dim] = np.absolute(Fs[dim].compute_vertex_values()[:] -
-                    #                          Fs_init[dim].compute_vertex_values()[:]).max()
-                    # else:
-                    #     delta[dim] = np.absolute(1 / norm_Fs[dim] *
-                    #                          Fs[dim].compute_vertex_values()[:] -
-                    #                          1 / norm_init *
-                    #                          Fs_init[dim].compute_vertex_values()[:]).max()
+                # OLD used for paper
+                # norm_init = dolfin.norm(Fs_init[dim])
+                # if norm_Fs[dim] < 1e-8:
+                #     delta[dim] = np.absolute(Fs[dim].compute_vertex_values()[:] -
+                #                          Fs_init[dim].compute_vertex_values()[:]).max()
+                # else:
+                #     delta[dim] = np.absolute(1 / norm_Fs[dim] *
+                #                          Fs[dim].compute_vertex_values()[:] -
+                #                          1 / norm_init *
+                #                          Fs_init[dim].compute_vertex_values()[:]).max()
 
                 self.logger.debug("norm for %s : %s", self.prob[dim], norm_Fs[dim])
                 # print("F"+str(dim)+" "+self.prob[dim], Fs[dim].compute_vertex_values()[:])
