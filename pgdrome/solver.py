@@ -225,7 +225,7 @@ class PGDProblem1:
                     Fs_init[dim] = dolfin.project(dolfin.Expression('1.0', degree=0), V=V[dim], solver_type='mumps')
                 self.logger.debug('Fs_init[dim]: %s ', Fs_init[dim].compute_vertex_values()[:])
 
-        return np.array(Fs_init, dtype=object)
+        return Fs_init
 
     def solve_PGD(self, _problem='nonlinear', solve_modes=None, settings={"linear_solver":"mumps"}):
         '''
@@ -341,7 +341,7 @@ class PGDProblem1:
         ffc_options = {"optimize": True}  # parameters are set globally in parameters["form_compiler"]
         # local parameters are used as first and then added by additional global parameters
 
-        Fs = np.copy(Fs_init)
+        Fs = np.copy(np.array(Fs_init, dtype=object))
         norm_Fs_init = np.copy(norm_Fs)
 
         # fixed point iteration
