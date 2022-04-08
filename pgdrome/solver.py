@@ -225,7 +225,7 @@ class PGDProblem1:
                     Fs_init[dim] = dolfin.project(dolfin.Expression('1.0', degree=0), V=V[dim], solver_type='mumps')
                 self.logger.debug('Fs_init[dim]: %s ', Fs_init[dim].compute_vertex_values()[:])
 
-        return Fs_init
+        return np.array(Fs_init, dtype=object)
 
     def solve_PGD(self, _problem='nonlinear', solve_modes=None, settings={"linear_solver":"mumps"}):
         '''
