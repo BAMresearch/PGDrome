@@ -1,7 +1,11 @@
 '''
     simple 1D PGD example (uniaxial truss with constant load) with three PGD variables (space, load factor and Emodul factor)
+      ->->->->->n(x)->->->->->->
+    >-------------EA------------<
+                L=1
+    with E = Emodul factor E_0 and n(x)=loadfactor n_0
 
-    solving PGD problem in standard way
+    solving PGD problem in standard way u(x,loadfactor,Emodulfactor)
 
     returning PGD instance
 
@@ -124,7 +128,7 @@ def main(vs, writeFlag=False, name=None):
                            lhs_fct=problem_assemble_lhs, probs=prob, seq_fp=seq_fp,
                            PGD_nmax=PGD_nmax)
     #
-    # possible solver paramters (if not given then default values will be used!)
+    # possible solver parameters (if not given then default values will be used!)
     # pgd_prob.max_fp_it = 5
     # pgd_prob.stop_fp = 'norm' #'delta'
     # pgd_prob.tol_fp_it = 1e-5

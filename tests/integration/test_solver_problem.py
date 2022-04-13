@@ -345,9 +345,6 @@ def main_normal(vs, params, writeFlag=False, name='PGDsolution', problem='linear
         if not os.path.exists(folder):
             os.makedirs(folder)
 
-        f = open(os.path.join(folder, 'git_version_sha.txt'), 'w')
-        f.write('used git commit: ' + str(get_git_revision2()))
-        f.close()
         pgd_solution.write_hdf5(folder)
         pgd_solution.write_pxdmf(folder)
 
@@ -403,6 +400,7 @@ class TestSolverProblem(unittest.TestCase):
         self.params = {"E_0": 30000, "g1":dolfin.Constant((0., -0.5)), "g2":dolfin.Constant((0., -1.5))}
 
         self.write = False # set to True to save pxdmf file
+        # self.write = True
 
         # test values
         self.p = 1.5
@@ -429,13 +427,16 @@ class TestSolverProblem(unittest.TestCase):
         print(amplitude_diff_max)
         self.assertTrue(amplitude_diff_max < 1e-8)
 
-        # check solution to FEM at one point
+        # error to FEM at one point
         pgd = pgd_s_lin.evaluate(0, [1, 2, 3], [self.p, self.E, self.nu], 0)
         fem_ref = FEM_reference(v_x, self.params, [self.p,self.E,self.nu])
         print('ref', fem_ref(self.x),'pgd',pgd(self.x))
         error_point = np.linalg.norm(np.array(pgd(self.x)-fem_ref(self.x)))/np.linalg.norm(fem_ref(self.x))
+        # errornorm over all nodes
         errorL2 = np.linalg.norm(pgd.compute_vertex_values()[:] - fem_ref.compute_vertex_values()[:], 2) / np.linalg.norm(fem_ref.compute_vertex_values()[:], 2)
         print(error_point, errorL2)
+
+        # check
         self.assertTrue(error_point < 2*pgd_prob_lin.amplitude[-2])
         self.assertTrue(errorL2 < 2 * pgd_prob_lin.amplitude[-2])
 

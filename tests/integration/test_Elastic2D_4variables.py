@@ -338,11 +338,26 @@ class PGDproblem(unittest.TestCase):
         v = TestFunction(Vs[0])
         d = u.geometric_dimension()
         
-        def epsilon2(u):
-            return 0.5*(grad(u) + grad(u).T)
+        # def epsilon2(u):
+        #     return 0.5*(grad(u) + grad(u).T)
+        #
+        # def sigma(u):
+        #     return lmbda*tr(epsilon2(u))*Identity(d) + 2*mu*epsilon2(u)
 
-        def sigma(u):
-            return lmbda*tr(epsilon2(u))*Identity(d) + 2*mu*epsilon2(u)
+        def epsilon2(v):
+            """ Returns a vector of strains of size (3,1) in the Voigt notation
+            layout {eps_xx, eps_yy, gamma_xy} where gamma_xy = 2*eps_xy"""
+            return as_vector([v[i].dx(i) for i in range(2)] +
+                                    [v[i].dx(j) + v[j].dx(i) for (i, j) in [(0, 1)]])
+
+        def sigma(v):
+            # plane strain in E and nu
+            alpha = self.E / ((1. + self.nu) * (1 - 2.0 * self.nu))
+            C_np = alpha * np.array([[1.0 - self.nu, self.nu, 0.0],
+                                     [self.nu, 1.0 - self.nu, 0.0],
+                                     [0.0, 0.0, (1.0 - 2.0 * self.nu) / 2.0]])
+            C = as_matrix(C_np)
+            return C * epsilon2(v)
 
         rhs = inner(sigma(u),epsilon2(v))*dx  # Right hand side (RHS)
         lhs= dot(g,v)*ds # Left hand side (lhs)
@@ -350,8 +365,9 @@ class PGDproblem(unittest.TestCase):
         # Solve:
         u = Function(Vs[0])
         solve(rhs==lhs,u,bc[0])
-        errorL2 = np.linalg.norm(u_pgd.vector()[:]-u.vector()[:],2)/np.linalg.norm(u.vector()[:],2)
-        # print(errorL2)
+        errorL21 = np.linalg.norm(u_pgd.vector()[:]-u.vector()[:],2)/np.linalg.norm(u.vector()[:],2)
+        errorL2 = np.linalg.norm(u_pgd.compute_vertex_values()[:] - u.compute_vertex_values()[:], 2) / np.linalg.norm(u.compute_vertex_values()[:], 2)
+        print(errorL21,errorL2)
         self.assertTrue(errorL2<0.03)
 
 if __name__ == '__main__':
