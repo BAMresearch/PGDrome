@@ -95,8 +95,6 @@ class PGDProblem1:
 
         self.solve_mode =	{ # dictionary to decide which solver is used
             "FEM": "FEM",
-            "RK": "RK4",
-            "RKmapping": "RK4mapping",
             "direct": "direct"
         }
 
@@ -119,52 +117,6 @@ class PGDProblem1:
         dom_tmp = self.dom
         self.logger.debug('boundary array: %s', self.bc_fct(self.V, dom_tmp, self.param))
         return self.bc_fct(self.V, dom_tmp, self.param)
-
-    def get_Fsnull(self, V):
-        '''
-            create null functions
-            :param V: list of function spaces or only one fct space for which null fct should be computed
-            :return: Fs_null list of null modes corresponding to input list V
-        '''
-        self.logger.debug("in get_Fsnull")
-        Fs_null = [[]] * len(V)
-        # for dim in range(PGD_dim):
-        #     Fs_null.append([])
-
-        for dim in range(len(V)):
-            # print('dim in Fsnull', dim)
-            dimension_dim = V[dim].mesh().topology().dim()
-            self.logger.debug('dimension of mesh: %s', dimension_dim)
-            # separated Null functions for scalar FunctionSpace or VectorFunctionSpaces
-            check_string = str(V[dim].ufl_function_space().ufl_element())
-            self.logger.debug('Functionspace of dim %s is from type %s', dim, check_string)
-            if check_string.split(' ')[0] == '<vector':
-                if dimension_dim == 1:
-                    Fs_null[dim] = dolfin.interpolate(dolfin.Expression('0.0', degree=1), V=V[dim])
-                    # Fs_null[dim] = dolfin.project(dolfin.Expression('0.0', degree=1), V=V[dim], solver_type='mumps')
-                elif dimension_dim == 2:  # VectorFunctionSpace!!!
-                    Fs_null[dim] = dolfin.interpolate(dolfin.Expression(('0.0', '0.0'), element=V[dim].ufl_element()),
-                                                      V=V[dim])
-                    # Fs_null[dim] = dolfin.project(dolfin.Expression(('0.0', '0.0'), element=V[dim].ufl_element()), V=V[dim])
-                elif dimension_dim == 3:  # VectorFunctionSpace!!!
-                    Fs_null[dim] = dolfin.interpolate(
-                        dolfin.Expression(('0.0', '0.0', '0.0'), element=V[dim].ufl_element()),
-                        V=V[dim])
-                    # Fs_null[dim] = dolfin.project(
-                    #     dolfin.Expression(('0.0', '0.0', '0.0'), element=V[dim].ufl_element()),
-                    #     V=V[dim], solver_type='mumps')
-                else:
-                    self.logger.error('ERROR DIMENSION for Vector function space NOT defined!!!!!!!!!!!')
-                    raise ValueError('ERROR DIMENSION for Vector function space NOT defined!!!!!!!!!!!')
-
-            elif check_string.split(' ')[0] == '<tensor':
-                self.logger.error('ERROR TENSOR function spaces not defined!!!!!')
-                raise ValueError('ERROR TENSOR function spaces not defined!!!!!')
-            else:
-                # scalar function space for each dimension the same
-                Fs_null[dim] = dolfin.interpolate(dolfin.Expression('0.0', degree=1), V=V[dim])
-
-        return Fs_null
 
     def get_Fsinit(self, V, bc=None):
         '''
@@ -227,7 +179,7 @@ class PGDProblem1:
 
         return Fs_init
 
-    def solve_PGD(self, _problem='nonlinear', solve_modes=None):
+    def solve_PGD(self, _problem='nonlinear', solve_modes=None, settings={"linear_solver":"mumps"}):
         '''
             create PGD solution enrichment loop calling fixed point iteration
             :param: _problem: select variationalSolver linear or nonlinear
@@ -236,10 +188,6 @@ class PGDProblem1:
         '''
 
         self.logger.debug('in solve_PGD')
-
-        # some predefined functions (F_init nicht hier muss neu gemacht werden in jedem enrichment schritt!!)
-        Fs_null = self.get_Fsnull(self.V)
-
 
         # enrichment loop
         # for n_enr in range(self.PGD_nmax):
@@ -267,7 +215,7 @@ class PGDProblem1:
             delta = np.ones(self.num_pgd_var)
 
             # FP iteration as extra function
-            Fs, norm_Fs = self.FP_solve(Fs_init, norm_Fs, delta, Fs_null, n_enr, _problem, solve_modes)
+            Fs, norm_Fs = self.FP_solve(Fs_init, norm_Fs, delta, n_enr, _problem, solve_modes, settings)
 
             self.logger.debug('update PGD_func: old lenght: %s', len(self.PGD_func[0]))
             # computed weighting factors
@@ -321,13 +269,12 @@ class PGDProblem1:
 
         return self
 
-    def FP_solve(self, Fs_init, norm_Fs, delta, Fs_null, n_enr, _problem, solve_modes):
+    def FP_solve(self, Fs_init, norm_Fs, delta, n_enr, _problem, solve_modes, settings):
         '''
             compute Fixed Point iteration for all dims in sequence fp_seq
         :param Fs_init: initialized functions
         :param norm_Fs: norms of Fs
         :param delta: list dimension PGD_dim
-        :param Fs_null: null functions
         :param n_enr: number of current enrichment step
         :param _problem: selects solver linear or nonlinear
         :param solve_modes: list of solvers to be used, if None the standard solver is used
@@ -339,7 +286,7 @@ class PGDProblem1:
         ffc_options = {"optimize": True}  # parameters are set globally in parameters["form_compiler"]
         # local parameters are used as first and then added by additional global parameters
 
-        Fs = np.copy(Fs_init)
+        Fs = np.copy(np.array(Fs_init, dtype=object))
         norm_Fs_init = np.copy(norm_Fs)
 
         # fixed point iteration
@@ -380,8 +327,8 @@ class PGDProblem1:
                             solver = dolfin.NonlinearVariationalSolver(problem)
                             prm = solver.parameters
                             prm["newton_solver"]["linear_solver"] = "mumps"  # "direct" #"gmres"
-                            # prm["newton_solver"]["relative_tolerance"] = 1e-8
-                            # prm["newton_solver"]["absolute_tolerance"] = 1e-9
+                            for key, value in settings.items():
+                                prm["newton_solver"][key] = value
                             solver.solve()
                         elif _problem.lower() == 'linear':
                             # alternative use linear solver:
@@ -400,6 +347,8 @@ class PGDProblem1:
                             solver = dolfin.LinearVariationalSolver(problem)
                             prm = solver.parameters
                             prm["linear_solver"] = "mumps"  # "direct" #"gmres"
+                            for key, value in settings.items():
+                                prm[key] = value
                             solver.solve()
                     elif solve_modes[dim] == self.solve_mode["direct"]:
                         fct_F = self.direct_solve(a, l, dim)
@@ -425,9 +374,8 @@ class PGDProblem1:
 
                             solver = dolfin.NonlinearVariationalSolver(problem)
                             prm = solver.parameters
-                            prm["newton_solver"]["linear_solver"] = "mumps"  # "direct" #"gmres"
-                            prm["newton_solver"]["relative_tolerance"] = 1e-8
-                            # prm["newton_solver"]["absolute_tolerance"] = 1e-9
+                            for key, value in settings.items():
+                                prm["newton_solver"][key] = value
                             solver.solve()
                         elif _problem.lower() == 'linear':
                             # alternative use linear solver:
@@ -443,7 +391,8 @@ class PGDProblem1:
 
                             solver = dolfin.LinearVariationalSolver(problem)
                             prm = solver.parameters
-                            prm["linear_solver"] = "mumps"  # "direct" #"gmres"
+                            for key, value in settings.items():
+                                prm[key] = value
                             solver.solve()
                     elif solve_modes[dim] == self.solve_mode["direct"]:
                         fct_F = self.direct_solve(a, l, dim)
@@ -468,17 +417,6 @@ class PGDProblem1:
                     delta[dim] = delta_tmp.max()
                 else:
                     delta[dim] = delta_tmp.max() / np.absolute(Fs[dim].vector()[max_index])
-
-                # OLD used for paper
-                # norm_init = dolfin.norm(Fs_init[dim])
-                # if norm_Fs[dim] < 1e-8:
-                #     delta[dim] = np.absolute(Fs[dim].compute_vertex_values()[:] -
-                #                          Fs_init[dim].compute_vertex_values()[:]).max()
-                # else:
-                #     delta[dim] = np.absolute(1 / norm_Fs[dim] *
-                #                          Fs[dim].compute_vertex_values()[:] -
-                #                          1 / norm_init *
-                #                          Fs_init[dim].compute_vertex_values()[:]).max()
 
                 self.logger.debug("norm for %s : %s", self.prob[dim], norm_Fs[dim])
                 # print("F"+str(dim)+" "+self.prob[dim], Fs[dim].compute_vertex_values()[:])

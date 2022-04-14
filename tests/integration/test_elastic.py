@@ -1,11 +1,17 @@
 '''
-    simple 1D PGD example (uniaxial truss with constant load) with three PGD variables (space, load factor and Emodul factor)
+    1D PGD example
+    linear elastic uniaxial truss with constant load:
+
       ->->->->->n(x)->->->->->->
     >-------------EA------------<
                 L=1
     with E = Emodul factor E_0 and n(x)=loadfactor n_0
 
-    solving PGD problem in standard way u(x,loadfactor,Emodulfactor)
+    DGL: \int var_eps E eps A dx = \int var_u n dx
+
+    three PGD variables: space, load factor and Emodul factor
+
+    solving PGD problem in standard way for u(x,loadfactor,Emodulfactor)
 
     returning PGD instance
 
