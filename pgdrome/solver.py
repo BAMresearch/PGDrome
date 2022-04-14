@@ -184,6 +184,7 @@ class PGDProblem1:
             create PGD solution enrichment loop calling fixed point iteration
             :param: _problem: select variationalSolver linear or nonlinear
             :param solve_modes: list of solvers to be used, if not given the standard solver is used
+            :param settings: dict of the settings the solver should use
             :return: PGD solution as PGDClass instance plus save self.amplitude and self.PGD_func
         '''
 
@@ -215,6 +216,7 @@ class PGDProblem1:
             delta = np.ones(self.num_pgd_var)
 
             # FP iteration as extra function
+
             Fs, norm_Fs = self.FP_solve(Fs_init, norm_Fs, delta, n_enr, _problem, solve_modes, settings)
 
             self.logger.debug('update PGD_func: old lenght: %s', len(self.PGD_func[0]))
@@ -278,6 +280,7 @@ class PGDProblem1:
         :param n_enr: number of current enrichment step
         :param _problem: selects solver linear or nonlinear
         :param solve_modes: list of solvers to be used, if None the standard solver is used
+        :param settings: dict of the settings the solver should use
         :return: Fs: list of new PGD functions
         :return: norm_Fs: updated list of norms of Fs
         '''
