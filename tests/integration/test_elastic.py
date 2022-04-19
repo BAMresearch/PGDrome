@@ -1,4 +1,4 @@
-'''
+r'''
     1D PGD example
     linear elastic uniaxial truss with constant load:
 
