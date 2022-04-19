@@ -1,4 +1,4 @@
-'''
+r'''
     2D linear elastictity PGD example
         geometry: 1000 x 100
         boundary: fixed at left side
