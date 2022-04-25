@@ -1,9 +1,19 @@
-'''
-    simple 1D PGD example (uniaxial truss with constant load) with three PGD variables (space, load factor and Emodul factor)
+r'''
+    1D PGD example
+    linear elastic uniaxial truss with constant load:
 
-    solving PGD problem in standard way as well as refined
+      ->->->->->n(x)->->->->->->
+    >-------------EA------------<
+                L=1
+    with E = Emodul factor E_0 and n(x)=loadfactor n_0
 
-    returning PGDModel (as forward model) or PGD instance
+    DGL: \int var_eps E eps A dx = \int var_u n dx
+
+    three PGD variables: space, load factor and Emodul factor
+
+    solving PGD problem in standard way for u(x,loadfactor,Emodulfactor)
+
+    returning PGD instance
 
 '''
 
@@ -124,16 +134,17 @@ def main(vs, writeFlag=False, name=None):
                            lhs_fct=problem_assemble_lhs, probs=prob, seq_fp=seq_fp,
                            PGD_nmax=PGD_nmax)
     #
-    # possible solver paramters (if not given then default values will be used!)
+    # possible solver parameters (if not given then default values will be used!)
     # pgd_prob.max_fp_it = 5
-    # pgd_prob.stop_fp = 'norm'
+    # pgd_prob.stop_fp = 'norm' #'delta'
     # pgd_prob.tol_fp_it = 1e-5
     # pgd_prob.tol_abs = 1e-4
-    pgd_prob.solve_PGD() # solve
+    pgd_prob.solve_PGD(_problem='linear') # solve
 
     pgd_s = pgd_prob.return_PGD()  # as PGD class instance
     # pgd_s.print_info()
     print(pgd_prob.simulation_info)
+    print('Amplitude:', pgd_prob.amplitude)
 
     # save for postprocessing!!
     if writeFlag:
@@ -178,7 +189,7 @@ class PGDproblem(unittest.TestCase):
         # evaluate
         u_pgd = pgd_test.evaluate(0, [1, 2], [self.p, self.E], 0)
         print('evaluate PGD', u_pgd(self.x), 'ref solution', self.analytic_solution)
-        self.assertAlmostEqual(u_pgd(self.x), self.analytic_solution, places=3)
+        self.assertAlmostEqual(u_pgd(self.x), self.analytic_solution, places=7)
 
 
 if __name__ == '__main__':

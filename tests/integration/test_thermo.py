@@ -168,10 +168,11 @@ def main(vs, writeFlag=False, name=None):
     # possible solver paramters (if not given then default values will be used!)
     pgd_prob.stop_fp = 'norm'
     pgd_prob.max_fp_it = 50
-    # pgd_prob.tol_fp_it = 1e-6
+    pgd_prob.tol_fp_it = 1e-3
     # pgd_prob.tol_abs = 1e-7
 
     pgd_prob.solve_PGD(_problem='linear') # solve normal
+    # pgd_prob.solve_PGD(_problem = 'nonlinear', settings = {"relative_tolerance": 1e-8, "linear_solver": "mumps"})
     print(pgd_prob.simulation_info)
     print('PGD Amplitude', pgd_prob.amplitude)
 

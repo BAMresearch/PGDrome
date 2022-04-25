@@ -351,7 +351,7 @@ class PGDproblem(unittest.TestCase):
         u = Function(Vs[0])
         solve(rhs==lhs,u,bc[0])
         errorL2 = np.linalg.norm(u_pgd.vector()[:]-u.vector()[:],2)/np.linalg.norm(u.vector()[:],2)
-        # print(errorL2)
+        print(errorL2)
         self.assertTrue(errorL2<0.03)
 
 if __name__ == '__main__':
