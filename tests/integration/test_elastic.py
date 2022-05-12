@@ -22,6 +22,7 @@ import dolfin
 import os
 
 from pgdrome.solver import PGDProblem1
+from pgdrome.model import PGDErrorComputation
 
 def create_meshes(num_elem, ord, ranges):
     '''
