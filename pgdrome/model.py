@@ -1343,3 +1343,44 @@ class PGDMesh(object):
         print('number of saved attributes:      ', len(self.attributes))
         print('fenics Mesh                      ', self.fenics_mesh)
         print('\n')
+        
+class PGDErrorComputation(object):
+    
+    def sampling_LHS(self,n_sample, n_var, l_bound, r_bound):
+        
+        '''Sampling is done using Latin Hypercube sampling method:
+            # n_sample: Number of samples.
+            # n_var: Number of variables
+            # l_bound and r bound: The ranges of the variable'''
+        
+        sampler = qmc.LatinHypercube(d=n_var, seed = 3452)
+        sample = sampler.random(n=n_sample)
+        # l_bounds = [input_mesh[1][0][0], input_mesh[2][0][0], input_mesh[3][0][0]] # Minimum boundary
+        # r_bounds = [input_mesh[1][0][1], input_mesh[2][0][1], input_mesh[3][0][1]] # Maximum boundary
+        data_test = qmc.scale(sample, l_bound, r_bound) # Scale the sample
+        data_test = data_test.tolist()
+        
+        return data_test
+
+    def compute_SampleError(self,u_FOM, u_PGD):
+            
+        ''' The error between the Full-Order Model (Analytical or FEM)
+        and PGD solution is computed selecting different snapshots. The
+        error is computed using the norm2:
+            # u_FOM: The exact solution.
+            # u_PGD: The solution coputed through pgdrome'''
+        
+        # PGD solution
+        #---------------------------------
+        # u_pgd = pgd_solution.evaluate(0, [1,2,3], [data_test[i][0],data_test[i][1],data_test[i][2]], 0) # The last zero means to compute displacements
+        # uvec_pgd = u_pgd.compute_vertex_values()
+        
+        # Compare PGD and FOM
+        #---------------------------------
+        residual = u_PGD-u_FOM
+        if type(u_FOM)==float:
+            error = residual/u_FOM
+        else:
+            error = np.linalg.norm(residual,2)/np.linalg.norm(u_FOM,2)
+         
+        return error
