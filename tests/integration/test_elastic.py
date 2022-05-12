@@ -186,10 +186,37 @@ class PGDproblem(unittest.TestCase):
         meshes, vs = create_meshes([113, 2, 100], self.ords, self.ranges)  # start meshes
         # solve PGD problem
         pgd_test = main(vs, writeFlag=self.write, name='PGDsolution_O%i' % self.ord)
+        
+        # Sampling
+        error_uPGD = PGDErrorComputation()
+        min_bnd = [self.ranges[0][0], self.ranges[1][0], self.ranges[2][0]] # Minimum boundary
+        max_bnd = [self.ranges[0][1], self.ranges[1][1], self.ranges[2][1]] # Maximum boundary
+
+        data_test = error_uPGD.sampling_LHS(10, len(self.ranges), min_bnd, max_bnd) # Sampling
+        
         # evaluate
-        u_pgd = pgd_test.evaluate(0, [1, 2], [self.p, self.E], 0)
-        print('evaluate PGD', u_pgd(self.x), 'ref solution', self.analytic_solution)
-        self.assertAlmostEqual(u_pgd(self.x), self.analytic_solution, places=7)
+        errorL2 = np.zeros(len(data_test))
+        for i in range(len(data_test)):
+            
+            # Solve PGD:
+            #-----------------------------------
+            u_pgd = pgd_test.evaluate(0, [1, 2], [data_test[i][1], data_test[i][2]], 0)
+            
+            # Analytical solution
+            #-----------------------------------
+            u_anl = 1.0*data_test[i][1] / (2 * 1.0*data_test[i][2] * 1.0) * (-data_test[i][0] * data_test[i][0] + 1.0 * data_test[i][0])
+            
+            # Compute error
+            #-----------------------------------
+            error_uPGD = PGDErrorComputation()
+            errorL2[i] = error_uPGD.compute_SampleError(u_anl, u_pgd(data_test[i][0]))
+        
+        mean_errorL2 = np.mean(errorL2)
+        max_errorL2 = np.max(errorL2)
+        print('Mean error',mean_errorL2)
+        print('Max. error',max_errorL2)
+        
+        self.assertTrue(mean_errorL2<0.01)
 
 
 if __name__ == '__main__':
