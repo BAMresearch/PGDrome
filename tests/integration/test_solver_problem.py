@@ -24,6 +24,7 @@ import os
 import numpy as np
 
 from pgdrome.solver import PGDProblem1
+from pgdrome.model import PGDErrorComputation
 
 dolfin.parameters["form_compiler"]["cpp_optimize"] = True
 dolfin.parameters["form_compiler"]["representation"] = 'uflacs'
@@ -460,10 +461,6 @@ class TestSolverProblem(unittest.TestCase):
             #-----------------------------------
             error_uPGD = PGDErrorComputation()
             errorL2[i] = error_uPGD.compute_SampleError(u_fem.compute_vertex_values()[:], u_pgd.compute_vertex_values()[:])
-            
-
-            # errorL2 = np.linalg.norm(u_pgd.vector()[:]-u.vector()[:],2)/np.linalg.norm(u.vector()[:],2)
-            # print('error2',errorL2)
             
         mean_errorL2 = np.mean(errorL2)
         max_errorL2 = np.max(errorL2)
