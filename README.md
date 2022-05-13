@@ -26,25 +26,19 @@ A FEniCS based python module of the Proper Generalized Decomposition (PGD) metho
  
 # Conda environment with dolfin
 
-* fenics (including dolfin)
+* create conda environment with requirements from file
 ```
-conda install -c conda-forge fenics mshr 
+cd PGDrome
+conda env create -f environment.yml
+conda activate pgdrome
 ```
-* fenicstools (required for some evaluation fct)
-```
-git clone https://github.com/mikaem/fenicstools.git
-cd fenicstools
-python3 setup.py install
-python3 -m pip install cppimport
-```
-* create full conda enviroment with requirements
+* or by hand
 ```
 conda create -n <name> -c conda-forge python=3.8 fenics mshr ipython h5py numpy scipy pytest
 conda activate <name>
 ```
-plus fenicstools (see above)
 
-# Install 
+# Install module pgdrome
 * Using setup.py
 ```
 git clone https://github.com/BAMresearch/PGDrome.git
@@ -58,6 +52,15 @@ uninstall with `python3 -m pip uninstall PGDrome`
 test with pytest or standalone
 ```
 pytest tests
+```
+
+# note
+* fenicstools (required for some evaluation fct)
+```
+git clone https://github.com/mikaem/fenicstools.git
+cd fenicstools
+python3 setup.py install
+python3 -m pip install cppimport
 ```
 
 # Unittests & coverage
