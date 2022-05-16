@@ -1346,34 +1346,36 @@ class PGDMesh(object):
         
 class PGDErrorComputation(object):
     
-    def sampling_LHS(self,n_sample, n_var, l_bound, r_bound):
+    def __init__(self, seq_fp=[], *args, **kwargs):
+        '''
+            seq_fp: Sequency of variables
+
+        '''
         
-        '''Sampling is done using Latin Hypercube sampling method:
-            # n_sample: Number of samples.
-            # n_var: Number of variables
-            # l_bound and r bound: The ranges of the variable'''
+        self.seq_fp = seq_fp
         
-        sampler = qmc.LatinHypercube(d=n_var, seed = 3452)
+    def sampling_LHS(self, n_sample, l_bound, r_bound):
+        
+        '''Sampling is done using Latin Hypercube sampling method'''
+        
+        sampler = qmc.LatinHypercube(d=len(self.seq_fp), seed = 3452)
         sample = sampler.random(n=n_sample)
-        # l_bounds = [input_mesh[1][0][0], input_mesh[2][0][0], input_mesh[3][0][0]] # Minimum boundary
-        # r_bounds = [input_mesh[1][0][1], input_mesh[2][0][1], input_mesh[3][0][1]] # Maximum boundary
-        data_test = qmc.scale(sample, l_bound, r_bound) # Scale the sample
-        data_test = data_test.tolist()
         
+        # Select the boundaries to do the sampling
+        aux_range =sorted(self.seq_fp)
+        aux_l_bound = [l_bound[i] for i in aux_range]
+        aux_r_bound = [r_bound[i] for i in aux_range]
+
+        data_test = qmc.scale(sample, aux_l_bound, aux_r_bound) # Scale the sample
+        data_test = data_test.tolist()
+            
         return data_test
 
     def compute_SampleError(self,u_FOM, u_PGD):
             
-        ''' The error between the Full-Order Model (Analytical or FEM)
-        and PGD solution is computed selecting different snapshots. The
-        error is computed using the norm2:
-            # u_FOM: The exact solution.
-            # u_PGD: The solution coputed through pgdrome'''
-        
-        # PGD solution
-        #---------------------------------
-        # u_pgd = pgd_solution.evaluate(0, [1,2,3], [data_test[i][0],data_test[i][1],data_test[i][2]], 0) # The last zero means to compute displacements
-        # uvec_pgd = u_pgd.compute_vertex_values()
+        ''' The error between the Full-Order Model (Analytical, FEM etc.)
+        and PGD solution is computed selecting at the selected snapshots. The
+        error is computed using the norm2 '''
         
         # Compare PGD and FOM
         #---------------------------------
@@ -1384,3 +1386,34 @@ class PGDErrorComputation(object):
             error = np.linalg.norm(residual,2)/np.linalg.norm(u_FOM,2)
          
         return error
+    
+    def evaluate_error(self, data_test, pgd_sol, fom_sol):
+        
+        # Initialize
+        errorL2 = np.zeros(len(data_test))
+        
+        # Compute error
+        
+        for i in range(len(data_test)):
+            
+            # FEM solution:
+            #-----------------------------------
+            u_fem, sol_point = fom_sol(data_test[i], i)
+            
+            # Solve PGD:
+            #-----------------------------------
+            u_pgd = pgd_sol.evaluate(0, self.seq_fp, data_test[i], 0) # The last zero means to compute displacements
+        
+            # Compute error:
+            #-----------------------------------
+            if isinstance(u_fem, np.ndarray):
+                usca_pgd = u_pgd(sol_point[i])
+                errorL2[i] = self.compute_SampleError(u_fem, usca_pgd)
+            else:
+                uvec_pgd = u_pgd.compute_vertex_values()[:]
+                errorL2[i] = self.compute_SampleError(u_fem.compute_vertex_values()[:], uvec_pgd)
+            
+        mean_errorL2 = np.mean(errorL2)
+        max_errorL2 = np.max(errorL2)
+        
+        return errorL2, mean_errorL2, max_errorL2
