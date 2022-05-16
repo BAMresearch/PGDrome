@@ -304,6 +304,53 @@ def main(Vs):
 
 # TEST: PGD result VS FEM result
 #==============================================================================  
+class Reference_solution():
+    
+    def __init__(self,Vs=[], param=[], meshes=[]):
+        self.Vs = Vs # Location
+        self.param = param # Parameters
+        self.meshes = meshes # Meshes
+
+    # def bc_definition(self):
+        
+        # Dirichlet BC:
+        self.bc = create_bc(self.Vs,0 ,self.param)
+        
+        # Neumman BC:
+        bnd = create_dom(self.Vs, self.param)
+        self.ds = Measure('ds', domain=self.meshes[0], subdomain_data=bnd[0], subdomain_id=1) # Integral over the boundary   
+        
+    def fem_definition(self,mu,lmbda,g):
+        u = TrialFunction(self.Vs[0])
+        v = TestFunction(self.Vs[0])
+        d = u.geometric_dimension()
+        
+        def epsilon2(u):
+            return 0.5*(grad(u) + grad(u).T)
+
+        def sigma(u):
+            return lmbda*tr(epsilon2(u))*Identity(d) + 2*mu*epsilon2(u)
+
+        rhs = inner(sigma(u),epsilon2(v))*dx  # Right hand side (RHS)
+        lhs = dot(g,v)*self.ds # Left hand side (LHS)
+        
+        # Solve:
+        u = Function(self.Vs[0])
+        solve(rhs==lhs,u,self.bc[0])
+        
+        return u
+            
+    def __call__(self, data_test,n_iter):
+        
+        # Lame parameters:
+        mu = 0.5*data_test[1]/(1+data_test[2]) # 2nd Lame constant
+        lmbda = data_test[1]*data_test[2]/((1-2*data_test[2])*(1+data_test[2])) # 1st Lame constant !! No name lambda because it is the name of a command in python
+        g = data_test[0]*self.param['g1']
+        
+        ref_sol = self.fem_definition(mu, lmbda, g)
+        
+        return ref_sol, self.meshes[0].coordinates()
+    
 class PGDproblem(unittest.TestCase):
     
     def setUp(self):
@@ -333,11 +380,11 @@ class PGDproblem(unittest.TestCase):
         
         # Sampling
         #======================================================================
-        error_uPGD = PGDErrorComputation()
-        min_bnd = [input_mesh[1][0][0], input_mesh[2][0][0], input_mesh[3][0][0]] # Minimum boundary
-        max_bnd = [input_mesh[1][0][1], input_mesh[2][0][1], input_mesh[3][0][1]] # Maximum boundary
+        error_uPGD = PGDErrorComputation(seq_fp = [1, 2, 3])
+        min_bnd = [[0, 0], input_mesh[1][0][0], input_mesh[2][0][0], input_mesh[3][0][0]] # Minimum boundary
+        max_bnd = [[1, 1], input_mesh[1][0][1], input_mesh[2][0][1], input_mesh[3][0][1]] # Maximum boundary
 
-        data_test = error_uPGD.sampling_LHS(10, len(meshes)-1, min_bnd, max_bnd)
+        data_test = error_uPGD.sampling_LHS(10, min_bnd, max_bnd)
         
         # data_test = [[1, 1, 0.3]] # Amplitude, Young, Poisson
         # data_test = [[0.5, 1, 0.25]] # Amplitude, Young, Poisson
@@ -345,58 +392,11 @@ class PGDproblem(unittest.TestCase):
 
         # Computing solution and error
         #======================================================================
-        
-        errorL2 = np.zeros(len(data_test))
         pgd_test, param = main(Vs)
 
-        for i in range(len(data_test)):
-            
-            # Solve PGD:
-            #-----------------------------------
-            u_pgd = pgd_test.evaluate(0, [1,2,3], [data_test[i][0],data_test[i][1],data_test[i][2]], 0) # The last zero means to compute displacements
-            uvec_pgd = u_pgd.compute_vertex_values()
+        fun_FOM = Reference_solution(Vs=Vs, param=param, meshes=meshes)
+        errorL2, mean_errorL2, max_errorL2 = error_uPGD.evaluate_error(data_test, pgd_test,fun_FOM)
         
-            # FEM solution
-            #-----------------------------------
-            mu = 0.5*data_test[i][1]/(1+data_test[i][2]) # 2nd Lame constant
-            lmbda = data_test[i][1]*data_test[i][2]/((1-2*data_test[i][2])*(1+data_test[i][2])) # 1st Lame constant (No name lambda because it is the name of a command in python)
-            # g = data_test[i][0].item()*Expression(('0.0','0.5'), degree =1)
-            g = data_test[i][0]*Expression(('0.0','0.1'), degree =1)
-        
-            # Dirichlet BC:
-            bc = create_bc(Vs,0 ,param)
-            
-            # Neumman BC:
-            bnd = create_dom(Vs, param)
-            ds = Measure('ds', domain=meshes[0], subdomain_data=bnd[0], subdomain_id=1) # Integral over the boundary   
-    
-            u = TrialFunction(Vs[0])
-            v = TestFunction(Vs[0])
-            d = u.geometric_dimension()
-            
-            def epsilon2(u):
-                return 0.5*(grad(u) + grad(u).T)
-    
-            def sigma(u):
-                return lmbda*tr(epsilon2(u))*Identity(d) + 2*mu*epsilon2(u)
-    
-            rhs = inner(sigma(u),epsilon2(v))*dx  # Right hand side (RHS)
-            lhs= dot(g,v)*ds # Left hand side (lhs)
-            
-            # Solve:
-            u = Function(Vs[0])
-            solve(rhs==lhs,u,bc[0])
-            
-            # Compute error
-            #-----------------------------------
-            error_uPGD = PGDErrorComputation()
-            errorL2[i] = error_uPGD.compute_SampleError(u.compute_vertex_values()[:], u_pgd.compute_vertex_values()[:])
-            
-            # errorL2 = np.linalg.norm(u_pgd.vector()[:]-u.vector()[:],2)/np.linalg.norm(u.vector()[:],2)
-            # print('error2',errorL2)
-            
-        mean_errorL2 = np.mean(errorL2)
-        max_errorL2 = np.max(errorL2)
         print('Mean error',mean_errorL2)
         print('Max. error',max_errorL2)
         
