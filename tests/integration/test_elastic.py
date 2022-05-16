@@ -20,6 +20,7 @@ r'''
 import unittest
 import dolfin
 import os
+from scipy.stats import qmc
 
 from pgdrome.solver import PGDProblem1
 from pgdrome.model import PGDErrorComputation
@@ -161,6 +162,29 @@ def main(vs, writeFlag=False, name=None):
 
     return pgd_s
 
+class Reference_solution():
+    def __init__(self, x_range=[], n_sample=[]):
+        self.x_range = x_range # Location
+        self.n_sample = n_sample
+        
+    def sampling_x(self):
+        
+        sampler = qmc.LatinHypercube(d=1, seed = 3452)
+        sample = sampler.random(n=self.n_sample)
+
+        aux_dataX = qmc.scale(sample, self.x_range[0], self.x_range[1]) # Scale the sample
+        # self.x  = aux_dataX.tolist()
+        self.x  = aux_dataX
+        
+        
+    def __call__(self, dataset, n_iter):
+        
+        if n_iter==0:
+            self.sampling_x()
+            
+        ref_sol = 1.0*dataset[0]/ (2*1.0*dataset[1]*1.0) * (-self.x[n_iter]*self.x[n_iter] + 1.0*self.x[n_iter])
+        return ref_sol, self.x
+    
 class PGDproblem(unittest.TestCase):
 
     def setUp(self):
@@ -170,14 +194,9 @@ class PGDproblem(unittest.TestCase):
         self.ranges = [[0., 1.],  # xmin, xmax
                   [-1., 3.],  # pmin,pmax
                   [0.2, 2.0]]  # Emin,Emax
+        self.seq_fp = [0, 1, 2]
 
         self.write = False # set to True to save pxdmf file
-
-        self.p = 2.0
-        self.E = 1.5
-        self.x = 0.5
-
-        self.analytic_solution = 1.0*self.p / (2 * 1.0*self.E * 1.0) * (-self.x * self.x + 1.0 * self.x)
 
     def TearDown(self):
         pass
@@ -188,37 +207,21 @@ class PGDproblem(unittest.TestCase):
         # solve PGD problem
         pgd_test = main(vs, writeFlag=self.write, name='PGDsolution_O%i' % self.ord)
         
-        # Sampling
-        error_uPGD = PGDErrorComputation()
+        # Sampling PGD variables:
+        error_uPGD = PGDErrorComputation(seq_fp = [1, 2])
         min_bnd = [self.ranges[0][0], self.ranges[1][0], self.ranges[2][0]] # Minimum boundary
         max_bnd = [self.ranges[0][1], self.ranges[1][1], self.ranges[2][1]] # Maximum boundary
 
-        data_test = error_uPGD.sampling_LHS(10, len(self.ranges), min_bnd, max_bnd) # Sampling
+        data_test = error_uPGD.sampling_LHS(10, min_bnd, max_bnd) # Sampling
+
+        # Evaluate
+        fun_FOM = Reference_solution(x_range=self.ranges[0], n_sample=10)
+        errorL2, mean_errorL2, max_errorL2 = error_uPGD.evaluate_error(data_test, pgd_test,fun_FOM)
         
-        # evaluate
-        errorL2 = np.zeros(len(data_test))
-        for i in range(len(data_test)):
-            
-            # Solve PGD:
-            #-----------------------------------
-            u_pgd = pgd_test.evaluate(0, [1, 2], [data_test[i][1], data_test[i][2]], 0)
-            
-            # Analytical solution
-            #-----------------------------------
-            u_anl = 1.0*data_test[i][1] / (2 * 1.0*data_test[i][2] * 1.0) * (-data_test[i][0] * data_test[i][0] + 1.0 * data_test[i][0])
-            
-            # Compute error
-            #-----------------------------------
-            error_uPGD = PGDErrorComputation()
-            errorL2[i] = error_uPGD.compute_SampleError(u_anl, u_pgd(data_test[i][0]))
-        
-        mean_errorL2 = np.mean(errorL2)
-        max_errorL2 = np.max(errorL2)
         print('Mean error',mean_errorL2)
         print('Max. error',max_errorL2)
         
         self.assertTrue(mean_errorL2<0.01)
-
 
 if __name__ == '__main__':
     # import logging
