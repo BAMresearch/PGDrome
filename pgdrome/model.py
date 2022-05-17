@@ -16,6 +16,7 @@ import h5py
 import numpy as np
 from numpy import linalg as la
 from scipy import interpolate
+from scipy.stats import qmc
 
 # set logger
 LOGGER = logging.getLogger(__name__)
