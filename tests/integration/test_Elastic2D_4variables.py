@@ -264,12 +264,11 @@ def main(Vs):
     coef = [coef_1, coef_2]
         
     param = {"aux_C": aux_C, "nufunc": coef, "Efunc":Expression('x[0]', degree=4),\
-         "Afunc":Expression('x[0]', degree=4)} # Define parameteres
-        
+         "Afunc":Expression('x[0]', degree=4), "g1":Constant((0.0, 0.1))} # Define parameteres
+    
     # Define BC:
     #-----------------------------
-    g1 = [Constant((0.0, 0.1))] # External load
-    G = [[g1]]
+    G = [[[param['g1']]]]
     
     # Define the problem
     #-----------------------------
@@ -307,11 +306,10 @@ def main(Vs):
 class Reference_solution():
     
     def __init__(self,Vs=[], param=[], meshes=[]):
+        
         self.Vs = Vs # Location
         self.param = param # Parameters
         self.meshes = meshes # Meshes
-
-    # def bc_definition(self):
         
         # Dirichlet BC:
         self.bc = create_bc(self.Vs,0 ,self.param)
@@ -340,7 +338,7 @@ class Reference_solution():
         
         return u
             
-    def __call__(self, data_test,n_iter):
+    def __call__(self, data_test):
         
         # Lame parameters:
         mu = 0.5*data_test[1]/(1+data_test[2]) # 2nd Lame constant
@@ -349,15 +347,15 @@ class Reference_solution():
         
         ref_sol = self.fem_definition(mu, lmbda, g)
         
-        return ref_sol, self.meshes[0].coordinates()
+        return ref_sol
     
 class PGDproblem(unittest.TestCase):
     
     def setUp(self):
         
-        self.E = 1 # Elastic modulus
-        self.A = 1 # Amplitude
-        self.nu = 0.3 # Poisson ratio
+        self.seq_fp = [0, 1, 2, 3] # Sequence of Fixed Point iteration
+        self.fixed_dim = [0] # Fixed variable
+        self.n_samples = 10 # Number of samples
         
     def TearDown(self):
         pass
@@ -378,24 +376,20 @@ class PGDproblem(unittest.TestCase):
         
         meshes, Vs = create_meshes(mesh_0,V_X,input_mesh)
         
-        # Sampling
-        #======================================================================
-        error_uPGD = PGDErrorComputation(seq_fp = [1, 2, 3])
-        min_bnd = [[0, 0], input_mesh[1][0][0], input_mesh[2][0][0], input_mesh[3][0][0]] # Minimum boundary
-        max_bnd = [[1, 1], input_mesh[1][0][1], input_mesh[2][0][1], input_mesh[3][0][1]] # Maximum boundary
-
-        data_test = error_uPGD.sampling_LHS(10, min_bnd, max_bnd)
-        
-        # data_test = [[1, 1, 0.3]] # Amplitude, Young, Poisson
-        # data_test = [[0.5, 1, 0.25]] # Amplitude, Young, Poisson
-
-
         # Computing solution and error
         #======================================================================
-        pgd_test, param = main(Vs)
+        pgd_test, param = main(Vs) # Computing PGD
 
-        fun_FOM = Reference_solution(Vs=Vs, param=param, meshes=meshes)
-        errorL2, mean_errorL2, max_errorL2 = error_uPGD.evaluate_error(data_test, pgd_test,fun_FOM)
+        fun_FOM = Reference_solution(Vs=Vs, param=param, meshes=meshes) # Computing Full-Order model: FEM
+        
+        error_uPGD = PGDErrorComputation(seq_fp = self.seq_fp,
+                                         fixed_dim = self.fixed_dim,
+                                         n_samples = self.n_samples,
+                                         FOM_model = fun_FOM,
+                                         PGD_model= pgd_test,
+                                         meshes = meshes)
+        
+        errorL2, mean_errorL2, max_errorL2 = error_uPGD.evaluate_error() # Computing Error
         
         print('Mean error',mean_errorL2)
         print('Max. error',max_errorL2)
