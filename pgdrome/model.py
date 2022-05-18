@@ -1347,32 +1347,48 @@ class PGDMesh(object):
         
 class PGDErrorComputation(object):
     
-    def __init__(self, seq_fp=[], *args, **kwargs):
+    def __init__(self, seq_fp=[], fixed_dim =[], n_samples = 1, data_test =[],
+                 FOM_model =[], PGD_model=[], meshes = [], Vs=[], *args, **kwargs):
         '''
-            seq_fp: Sequency of variables
+            # seq_fp: Sequency of variables
+            # fixed_dim: Fixed variables
+            # n_samples: Number os samples
+            # data_test: PGD variables in which error must be computed
+            # FOM_model: Full-Order model solution
+            # PGD_model: Solution computed through PGD
+            # meshes: PGD meshes
+            # Vs:
 
         '''
         
         self.seq_fp = seq_fp
+        self.fixed_dim = fixed_dim
+        self.free_dim = [item for item in seq_fp if item not in fixed_dim]
+        self.n_smp = n_samples 
+        self.data_test = data_test
+        self.FOM_sol = FOM_model
+        self.PGD_sol = PGD_model
+        self.meshes = meshes
+        self.Vs = Vs
         
     def sampling_LHS(self, n_sample, l_bound, r_bound):
         
         '''Sampling is done using Latin Hypercube sampling method'''
         
-        sampler = qmc.LatinHypercube(d=len(self.seq_fp), seed = 3452)
+        sampler = qmc.LatinHypercube(d=len(self.free_dim ), seed = 3452)
         sample = sampler.random(n=n_sample)
         
         # Select the boundaries to do the sampling
-        aux_range =sorted(self.seq_fp)
-        aux_l_bound = [l_bound[i] for i in aux_range]
-        aux_r_bound = [r_bound[i] for i in aux_range]
+        aux_range = sorted(self.free_dim )
+        aux_l_bound = [float(l_bound[i]) for i in aux_range]
+        aux_r_bound = [float(r_bound[i]) for i in aux_range]
 
         data_test = qmc.scale(sample, aux_l_bound, aux_r_bound) # Scale the sample
         data_test = data_test.tolist()
             
         return data_test
 
-    def compute_SampleError(self,u_FOM, u_PGD):
+    def compute_SampleError(self, u_FOM, u_PGD):
             
         ''' The error between the Full-Order Model (Analytical, FEM etc.)
         and PGD solution is computed selecting at the selected snapshots. The
@@ -1385,30 +1401,42 @@ class PGDErrorComputation(object):
             error = residual/u_FOM
         else:
             error = np.linalg.norm(residual,2)/np.linalg.norm(u_FOM,2)
-         
         return error
     
-    def evaluate_error(self, data_test, pgd_sol, fom_sol):
+    def evaluate_error(self):
+        
+        # Sampling:
+        if not self.data_test:
+            min_bnd =[None]*len(self.seq_fp) 
+            max_bnd =[None]*len(self.seq_fp)
+    
+            for i in self.free_dim:
+                min_bnd[i] = min(self.meshes[i].coordinates()) # Minimum boundary
+                max_bnd[i] = max(self.meshes[i].coordinates()) # Maximum boundary
+    
+            self.data_test = self.sampling_LHS(self.n_smp, min_bnd, max_bnd)
         
         # Initialize
-        errorL2 = np.zeros(len(data_test))
+        errorL2 = np.zeros(len(self.data_test))
         
         # Compute error
         
-        for i in range(len(data_test)):
+        for i in range(len(self.data_test)):
             
             # FEM solution:
             #-----------------------------------
-            u_fem, sol_point = fom_sol(data_test[i], i)
+            u_fem = self.FOM_sol(self.data_test[i])
             
             # Solve PGD:
             #-----------------------------------
-            u_pgd = pgd_sol.evaluate(0, self.seq_fp, data_test[i], 0) # The last zero means to compute displacements
+            u_pgd = self.PGD_sol.evaluate(0, self.free_dim, self.data_test[i], 0) # The last zero means to compute displacements
         
             # Compute error:
             #-----------------------------------
             if isinstance(u_fem, np.ndarray):
-                usca_pgd = u_pgd(sol_point[i])
+                # usca_pgd = u_pgd(sol_point[i])
+                aux_data = [self.meshes[0].coordinates()[:]] + self.data_test[i]
+                usca_pgd = u_pgd(aux_data)
                 errorL2[i] = self.compute_SampleError(u_fem, usca_pgd)
             else:
                 uvec_pgd = u_pgd.compute_vertex_values()[:]
