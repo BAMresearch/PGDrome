@@ -1,25 +1,16 @@
-r'''
-    1D PGD example
-    linear elastic uniaxial truss with constant load:
+'''
+    simple 1D PGD example (uniaxial truss with constant load) with three PGD variables (space, load factor and Emodul factor)
 
-      ->->->->->n(x)->->->->->->
-    >-------------EA------------<
-                L=1
-    with E = Emodul factor E_0 and n(x)=loadfactor n_0
+    solving PGD problem in standard way as well as refined
 
-    DGL: \int var_eps E eps A dx = \int var_u n dx
-
-    three PGD variables: space, load factor and Emodul factor
-
-    solving PGD problem in standard way for u(x,loadfactor,Emodulfactor)
-
-    returning PGD instance
+    returning PGDModel (as forward model) or PGD instance
 
 '''
 
 import unittest
 import dolfin
 import os
+import numpy as np
 from scipy.stats import qmc
 
 from pgdrome.solver import PGDProblem1
@@ -136,17 +127,16 @@ def main(vs, writeFlag=False, name=None):
                            lhs_fct=problem_assemble_lhs, probs=prob, seq_fp=seq_fp,
                            PGD_nmax=PGD_nmax)
     #
-    # possible solver parameters (if not given then default values will be used!)
+    # possible solver paramters (if not given then default values will be used!)
     # pgd_prob.max_fp_it = 5
-    # pgd_prob.stop_fp = 'norm' #'delta'
+    # pgd_prob.stop_fp = 'norm'
     # pgd_prob.tol_fp_it = 1e-5
     # pgd_prob.tol_abs = 1e-4
-    pgd_prob.solve_PGD(_problem='linear') # solve
+    pgd_prob.solve_PGD() # solve
 
     pgd_s = pgd_prob.return_PGD()  # as PGD class instance
     # pgd_s.print_info()
     print(pgd_prob.simulation_info)
-    print('Amplitude:', pgd_prob.amplitude)
 
     # save for postprocessing!!
     if writeFlag:
@@ -163,27 +153,22 @@ def main(vs, writeFlag=False, name=None):
     return pgd_s
 
 class Reference_solution():
-    def __init__(self, x_range=[], n_sample=[]):
-        self.x_range = x_range # Location
-        self.n_sample = n_sample
+    
+    def __init__(self, meshes = []):
         
-    def sampling_x(self):
+        self.x = meshes[0].coordinates()
         
-        sampler = qmc.LatinHypercube(d=1, seed = 3452)
-        sample = sampler.random(n=self.n_sample)
+    def __call__(self, dataset):
+        
 
-        aux_dataX = qmc.scale(sample, self.x_range[0], self.x_range[1]) # Scale the sample
-        # self.x  = aux_dataX.tolist()
-        self.x  = aux_dataX
+        ref_sol = 1.0*dataset[0]/ (2*1.0*dataset[1]*1.0) * (-self.x*self.x + 1.0*self.x)
         
-        
-    def __call__(self, dataset, n_iter):
-        
-        if n_iter==0:
-            self.sampling_x()
-            
-        ref_sol = 1.0*dataset[0]/ (2*1.0*dataset[1]*1.0) * (-self.x[n_iter]*self.x[n_iter] + 1.0*self.x[n_iter])
-        return ref_sol, self.x
+        # nu = dataset[0]
+        # E = dataset[1]
+        # ref_sol = 1.0*nu/ (2*1.0*E*1.0) * (-x[0]*x[0] + 1.0*x[0])
+
+        return ref_sol
+    
     
 class PGDproblem(unittest.TestCase):
 
@@ -191,11 +176,13 @@ class PGDproblem(unittest.TestCase):
         # global parameters
         self.ord = 2  # 1 # 2 # order for each mesh
         self.ords = [self.ord, self.ord, self.ord]
-        self.ranges = [[0., 1.],  # xmin, xmax
-                  [-1., 3.],  # pmin,pmax
-                  [0.2, 2.0]]  # Emin,Emax
+        self.ranges = [[0, 1], #xmin, xmax
+                       [-1., 3.],  # pmin,pmax
+                       [0.2, 2.0]]  # Emin,Emax
         self.seq_fp = [0, 1, 2]
-
+        self.fixed_dim = [0]
+        self.n_samples =10
+        
         self.write = False # set to True to save pxdmf file
 
     def TearDown(self):
@@ -207,21 +194,28 @@ class PGDproblem(unittest.TestCase):
         # solve PGD problem
         pgd_test = main(vs, writeFlag=self.write, name='PGDsolution_O%i' % self.ord)
         
-        # Sampling PGD variables:
-        error_uPGD = PGDErrorComputation(seq_fp = [1, 2])
-        min_bnd = [self.ranges[0][0], self.ranges[1][0], self.ranges[2][0]] # Minimum boundary
-        max_bnd = [self.ranges[0][1], self.ranges[1][1], self.ranges[2][1]] # Maximum boundary
-
-        data_test = error_uPGD.sampling_LHS(10, min_bnd, max_bnd) # Sampling
-
         # Evaluate
-        fun_FOM = Reference_solution(x_range=self.ranges[0], n_sample=10)
-        errorL2, mean_errorL2, max_errorL2 = error_uPGD.evaluate_error(data_test, pgd_test,fun_FOM)
+        fun_FOM = Reference_solution(meshes=meshes)
+        
+        error_uPGD = PGDErrorComputation(seq_fp = self.seq_fp,
+                                         fixed_dim = self.fixed_dim,
+                                         n_samples = self.n_samples,
+                                         FOM_model = fun_FOM,
+                                         PGD_model= pgd_test,
+                                         meshes = meshes,
+                                         Vs = vs)
+        
+        errorL2, mean_errorL2, max_errorL2 = error_uPGD.evaluate_error()
         
         print('Mean error',mean_errorL2)
         print('Max. error',max_errorL2)
         
         self.assertTrue(mean_errorL2<0.01)
+        
+        # u_pgd = pgd_test.evaluate(0, [1, 2], [self.p, self.E], 0)
+        # print('evaluate PGD', u_pgd(self.x), 'ref solution', self.analytic_solution)
+        # self.assertAlmostEqual(u_pgd(self.x), self.analytic_solution, places=3)
+
 
 if __name__ == '__main__':
     # import logging
