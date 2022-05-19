@@ -1347,43 +1347,59 @@ class PGDMesh(object):
         
 class PGDErrorComputation(object):
     
-    def __init__(self, seq_fp=[], fixed_dim =[], n_samples = 1, data_test =[],
-                 FOM_model =[], PGD_model=[], meshes = [], Vs=[], *args, **kwargs):
+    def __init__(self, fixed_dim = 0, n_samples = 1, data_test =[],
+                 FOM_model =[], PGD_model=[], lim_samples =[],*args, **kwargs):
         '''
-            # seq_fp: Sequency of variables
             # fixed_dim: Fixed variables
             # n_samples: Number os samples
-            # data_test: PGD variables in which error must be computed
-            # FOM_model: Full-Order model solution
-            # PGD_model: Solution computed through PGD
-            # meshes: PGD meshes
-            # Vs:
+            # data_test: PGD variables in which error must be computed (list: No. samples x No. variables)
+            # FOM_model: Full-Order model solution (class or ndarray, defined in the main script)
+            # PGD_model: Solution computed through PGD in the main script (Class, defined in the main script)
 
         '''
         
-        self.seq_fp = seq_fp
         self.fixed_dim = fixed_dim
-        self.free_dim = [item for item in seq_fp if item not in fixed_dim]
         self.n_smp = n_samples 
         self.data_test = data_test
         self.FOM_sol = FOM_model
         self.PGD_sol = PGD_model
-        self.meshes = meshes
-        self.Vs = Vs
+        self.lim_smp = lim_samples
         
-    def sampling_LHS(self, n_sample, l_bound, r_bound):
+        self.free_dim = [item for item in list(range(0, len(self.PGD_sol.problem.meshes))) if item not in fixed_dim]
+        
+    def sampling_LHS(self):
         
         '''Sampling is done using Latin Hypercube sampling method'''
         
-        sampler = qmc.LatinHypercube(d=len(self.free_dim ), seed = 3452)
-        sample = sampler.random(n=n_sample)
+        #Initialize
+        sampler = qmc.LatinHypercube(d=len(self.free_dim), seed = 3452)
+        sample = sampler.random(n=self.n_smp)
         
         # Select the boundaries to do the sampling
-        aux_range = sorted(self.free_dim )
-        aux_l_bound = [float(l_bound[i]) for i in aux_range]
-        aux_r_bound = [float(r_bound[i]) for i in aux_range]
-
-        data_test = qmc.scale(sample, aux_l_bound, aux_r_bound) # Scale the sample
+        min_bnd =[None]*len(self.free_dim) 
+        max_bnd =[None]*len(self.free_dim)
+        ind =0
+        
+        if not self.lim_smp:
+            
+            for i in self.free_dim:
+                if len(self.PGD_sol.problem.meshes[i].coordinates()[0]) ==1:
+                
+                    min_bnd[ind] = float(min(self.PGD_sol.problem.meshes[i].coordinates())) # Minimum boundary
+                    max_bnd[ind] = float(max(self.PGD_sol.problem.meshes[i].coordinates())) # Maximum boundary
+                    ind = ind+1
+                else:
+                    print("Not implemented")
+        else:
+            for i in self.free_dim:
+                if len(self.lim_smp[i]) == 2:
+                    min_bnd[ind] = float(min(self.lim_smp[i])) # Minimum boundary
+                    max_bnd[ind] = float(max(self.lim_smp[i])) # Maximum boundary
+                    ind = ind+1
+                else:
+                    print("Not implemented")
+                
+        data_test = qmc.scale(sample, min_bnd, max_bnd) # Scale the sample
         data_test = data_test.tolist()
             
         return data_test
@@ -1391,11 +1407,8 @@ class PGDErrorComputation(object):
     def compute_SampleError(self, u_FOM, u_PGD):
             
         ''' The error between the Full-Order Model (Analytical, FEM etc.)
-        and PGD solution is computed selecting at the selected snapshots. The
-        error is computed using the norm2 '''
-        
-        # Compare PGD and FOM
-        #---------------------------------
+        and PGD solution is computed at the selected snapshots. The normalized 
+        error is computed using the norm2 and normalized '''
         
         if isinstance(u_FOM,np.ndarray):
             
@@ -1407,19 +1420,15 @@ class PGDErrorComputation(object):
             
         return error
     
+    # def interp` ??
+    
     def evaluate_error(self):
         
         # Sampling:
         if not self.data_test:
-            min_bnd =[None]*len(self.seq_fp) 
-            max_bnd =[None]*len(self.seq_fp)
-    
-            for i in self.free_dim:
-                min_bnd[i] = min(self.meshes[i].coordinates()) # Minimum boundary
-                max_bnd[i] = max(self.meshes[i].coordinates()) # Maximum boundary
-    
-            self.data_test = self.sampling_LHS(self.n_smp, min_bnd, max_bnd)
         
+            self.data_test = self.sampling_LHS()
+            
         # Initialize
         errorL2 = np.zeros(len(self.data_test))
         
@@ -1433,7 +1442,7 @@ class PGDErrorComputation(object):
             
             # Solve PGD:
             #-----------------------------------
-            u_pgd = self.PGD_sol.evaluate(0, self.free_dim, self.data_test[i], 0) # The last zero means to compute displacements
+            u_pgd = self.PGD_sol.evaluate(int(self.fixed_dim[0]), self.free_dim, self.data_test[i], 0)
         
             # Compute error:
             #-----------------------------------
