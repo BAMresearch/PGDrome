@@ -1396,11 +1396,15 @@ class PGDErrorComputation(object):
         
         # Compare PGD and FOM
         #---------------------------------
-        residual = u_PGD-u_FOM
-        if type(u_FOM)==float:
-            error = residual/u_FOM
+        
+        if isinstance(u_FOM,np.ndarray):
+            
+            residual = u_PGD.compute_vertex_values()[:]-u_FOM.reshape(-1)
+            error = np.linalg.norm(residual,2)/np.linalg.norm(u_FOM.reshape(-1),2)
+            
         else:
-            error = np.linalg.norm(residual,2)/np.linalg.norm(u_FOM,2)
+            error = dolfin.norm(u_FOM.vector()-u_PGD.vector(),'l2')/dolfin.norm(u_FOM.vector(),'l2')
+            
         return error
     
     def evaluate_error(self):
@@ -1433,14 +1437,7 @@ class PGDErrorComputation(object):
         
             # Compute error:
             #-----------------------------------
-            if isinstance(u_fem, np.ndarray):
-                # usca_pgd = u_pgd(sol_point[i])
-                aux_data = [self.meshes[0].coordinates()[:]] + self.data_test[i]
-                usca_pgd = u_pgd(aux_data)
-                errorL2[i] = self.compute_SampleError(u_fem, usca_pgd)
-            else:
-                uvec_pgd = u_pgd.compute_vertex_values()[:]
-                errorL2[i] = self.compute_SampleError(u_fem.compute_vertex_values()[:], uvec_pgd)
+            errorL2[i] = self.compute_SampleError(u_fem, u_pgd)
             
         mean_errorL2 = np.mean(errorL2)
         max_errorL2 = np.max(errorL2)
