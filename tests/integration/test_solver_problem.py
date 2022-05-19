@@ -4,18 +4,13 @@ r'''
         boundary: fixed at left side
         load: at top: first half with 1.5xloadfactor second half 0.5xloadfactor
         elastic plane strain C(E,nu)
-
           ||||F2||||||F1|||
         |>-----------------
         |>----------------- Ly
                 Lx
         with E = lam_E E_0 and F2=lam_p F20/ F1=lam_p F10
-
     PGD for displacements with PGD variable: X (x,y space), lam_p (load factor), lam_E (E Module factor), nu (Poission ratio)
-
     DGL: \int var_eps C(E,nu) eps dX = \int var_u F2 dX_F2 + \int var_u F1 dX_F1
-
-
 '''
 
 import unittest
@@ -24,7 +19,6 @@ import os
 import numpy as np
 
 from pgdrome.solver import PGDProblem1
-from pgdrome.model import PGDErrorComputation
 
 dolfin.parameters["form_compiler"]["cpp_optimize"] = True
 dolfin.parameters["form_compiler"]["representation"] = 'uflacs'
@@ -434,40 +428,12 @@ class TestSolverProblem(unittest.TestCase):
 
         # error to FEM at one point
         pgd = pgd_s_lin.evaluate(0, [1, 2, 3], [self.p, self.E, self.nu], 0)
-        
-        # Sampling
-        error_uPGD = PGDErrorComputation()
-        min_bnd = [self.ranges[0][0], self.ranges[1][0], self.ranges[2][0]] # Minimum boundary
-        max_bnd = [self.ranges[0][1], self.ranges[1][1], self.ranges[2][1]] # Maximum boundary
-
-        data_test = error_uPGD.sampling_LHS(10, len(self.ranges), min_bnd, max_bnd)
-        
-        # Evaluate
-        
-        errorL2 = np.zeros(len(data_test))
-        
-        for i in range(len(data_test)):
-            
-            # Solve PGD:
-            #-----------------------------------
-            u_pgd = pgd_s_lin.evaluate(0, [1,2,3], [data_test[i][0],data_test[i][1],data_test[i][2]], 0) # The last zero means to compute displacements
-            uvec_pgd = u_pgd.compute_vertex_values()
-        
-            # FEM solution
-            #-----------------------------------
-            u_fem = FEM_reference(v_x, self.params, [data_test[i][0],data_test[i][1],data_test[i][2]])
-            
-            # Compute error 1
-            #-----------------------------------
-            error_uPGD = PGDErrorComputation()
-            errorL2[i] = error_uPGD.compute_SampleError(u_fem.compute_vertex_values()[:], u_pgd.compute_vertex_values()[:])
-            
-        mean_errorL2 = np.mean(errorL2)
-        max_errorL2 = np.max(errorL2)
-        
         fem_ref = FEM_reference(v_x, self.params, [self.p,self.E,self.nu])
         print('ref', fem_ref(self.x),'pgd',pgd(self.x))
         error_point = np.linalg.norm(np.array(pgd(self.x)-fem_ref(self.x)))/np.linalg.norm(fem_ref(self.x))
+        # errornorm over all nodes
+        errorL2 = np.linalg.norm(pgd.compute_vertex_values()[:] - fem_ref.compute_vertex_values()[:], 2) / np.linalg.norm(fem_ref.compute_vertex_values()[:], 2)
+        #print(error_point, errorL2)
 
         # check
         self.assertTrue(error_point < 2*pgd_prob_lin.amplitude[-2])
@@ -479,6 +445,7 @@ if __name__ == '__main__':
     # logging.basicConfig(level=logging.DEBUG)
 
     unittest.main()
+
 
 
 
