@@ -126,12 +126,7 @@ def main(vs, writeFlag=False, name=None):
                            param=param, rhs_fct=problem_assemble_rhs,
                            lhs_fct=problem_assemble_lhs, probs=prob, seq_fp=seq_fp,
                            PGD_nmax=PGD_nmax)
-    #
-    # possible solver paramters (if not given then default values will be used!)
-    # pgd_prob.max_fp_it = 5
-    # pgd_prob.stop_fp = 'norm'
-    # pgd_prob.tol_fp_it = 1e-5
-    # pgd_prob.tol_abs = 1e-4
+    
     pgd_prob.solve_PGD() # solve
 
     pgd_s = pgd_prob.return_PGD()  # as PGD class instance
@@ -152,7 +147,7 @@ def main(vs, writeFlag=False, name=None):
 
     return pgd_s
 
-class Reference_solution():
+class FOM_solution():
     
     def __init__(self, meshes = []):
         
@@ -160,16 +155,10 @@ class Reference_solution():
         
     def __call__(self, dataset):
         
-
         ref_sol = 1.0*dataset[0]/ (2*1.0*dataset[1]*1.0) * (-self.x*self.x + 1.0*self.x)
-        
-        # nu = dataset[0]
-        # E = dataset[1]
-        # ref_sol = 1.0*nu/ (2*1.0*E*1.0) * (-x[0]*x[0] + 1.0*x[0])
 
         return ref_sol
-    
-    
+      
 class PGDproblem(unittest.TestCase):
 
     def setUp(self):
@@ -189,22 +178,22 @@ class PGDproblem(unittest.TestCase):
         pass
 
     def test_standard_solver(self):
+        
         # define meshes
         meshes, vs = create_meshes([113, 2, 100], self.ords, self.ranges)  # start meshes
+        
         # solve PGD problem
         pgd_test = main(vs, writeFlag=self.write, name='PGDsolution_O%i' % self.ord)
         
         # Evaluate
-        fun_FOM = Reference_solution(meshes=meshes)
+        fun_FOM = FOM_solution(meshes=meshes)
         
-        error_uPGD = PGDErrorComputation(seq_fp = self.seq_fp,
-                                         fixed_dim = self.fixed_dim,
+        error_uPGD = PGDErrorComputation(fixed_dim = self.fixed_dim,
                                          n_samples = self.n_samples,
                                          FOM_model = fun_FOM,
-                                         PGD_model= pgd_test,
-                                         meshes = meshes,
-                                         Vs = vs)
-        
+                                         PGD_model = pgd_test
+                                         )
+
         errorL2, mean_errorL2, max_errorL2 = error_uPGD.evaluate_error()
         
         print('Mean error',mean_errorL2)
