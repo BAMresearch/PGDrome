@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TEST: Elastic plate (2D) is modeled using PGD and FEM. The displacemetns 
 computed by the two mehods are compared to check its working well.
@@ -303,6 +302,9 @@ def main(Vs):
 
 # TEST: PGD result VS FEM result
 #==============================================================================  
+
+# Finite Element Model
+#=======================================
 class Reference_solution():
     
     def __init__(self,Vs=[], param=[], meshes=[]):
@@ -348,7 +350,9 @@ class Reference_solution():
         ref_sol = self.fem_definition(mu, lmbda, g)
         
         return ref_sol
-    
+ 
+# PGD model and Error computation
+#=======================================
 class PGDproblem(unittest.TestCase):
     
     def setUp(self):
@@ -382,12 +386,11 @@ class PGDproblem(unittest.TestCase):
 
         fun_FOM = Reference_solution(Vs=Vs, param=param, meshes=meshes) # Computing Full-Order model: FEM
         
-        error_uPGD = PGDErrorComputation(seq_fp = self.seq_fp,
-                                         fixed_dim = self.fixed_dim,
+        error_uPGD = PGDErrorComputation(fixed_dim = self.fixed_dim,
                                          n_samples = self.n_samples,
                                          FOM_model = fun_FOM,
-                                         PGD_model= pgd_test,
-                                         meshes = meshes)
+                                         PGD_model = pgd_test
+                                         )
         
         errorL2, mean_errorL2, max_errorL2 = error_uPGD.evaluate_error() # Computing Error
         
