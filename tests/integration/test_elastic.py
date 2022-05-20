@@ -149,9 +149,9 @@ def main(vs, writeFlag=False, name=None):
 
 class FOM_solution():
     
-    def __init__(self, meshes = []):
+    def __init__(self, meshes = [], x = []):
         
-        self.x = meshes[0].coordinates()
+        self.x = x
         
     def __call__(self, dataset):
         
@@ -182,25 +182,54 @@ class PGDproblem(unittest.TestCase):
         # define meshes
         meshes, vs = create_meshes([113, 2, 100], self.ords, self.ranges)  # start meshes
         
+        # Compute error:
+        #----------------------------------------------------------------------
+        
         # solve PGD problem
         pgd_test = main(vs, writeFlag=self.write, name='PGDsolution_O%i' % self.ord)
         
-        # Evaluate
-        fun_FOM = FOM_solution(meshes=meshes)
+        # Solve Full-oorder model: FEM
+        fun_FOM = FOM_solution(meshes = meshes, x = meshes[0].coordinates())
         
+        # Compute error
         error_uPGD = PGDErrorComputation(fixed_dim = self.fixed_dim,
                                          n_samples = self.n_samples,
                                          FOM_model = fun_FOM,
                                          PGD_model = pgd_test
                                          )
-
         errorL2, mean_errorL2, max_errorL2 = error_uPGD.evaluate_error()
         
         print('Mean error',mean_errorL2)
         print('Max. error',max_errorL2)
+                
+        # Compute error at certain points of the fixed variable:
+        #----------------------------------------------------------------------
         
+        # Create variables array:
+        sampler = qmc.LatinHypercube(d=1, seed = 3452) # Dimensions
+        sample = sampler.random(n=1) # Number of samples
+        data_test = qmc.scale(sample, self.ranges[0][0], self.ranges[0][1]) # Scale the sample
+        data_test = data_test.tolist()
+        
+        # Solve Full-oorder model: FEM
+        fun_FOM2 = FOM_solution(meshes=meshes, x=np.array(data_test))
+        
+        # Compute error:
+        error_uPoints = PGDErrorComputation(fixed_dim = self.fixed_dim,
+                                            n_samples = self.n_samples,
+                                            FOM_model = fun_FOM2,
+                                            PGD_model = pgd_test,
+                                            fixed_var = data_test
+                                            )
+
+        errorL2P, mean_errorL2P, max_errorL2P = error_uPoints.evaluate_error()   
+        
+        print('Mean error (Point)',mean_errorL2P)
+        print('Max. error (Point)',max_errorL2P)
+        
+        self.assertTrue(mean_errorL2P<0.01)
         self.assertTrue(mean_errorL2<0.01)
-        
+
         # u_pgd = pgd_test.evaluate(0, [1, 2], [self.p, self.E], 0)
         # print('evaluate PGD', u_pgd(self.x), 'ref solution', self.analytic_solution)
         # self.assertAlmostEqual(u_pgd(self.x), self.analytic_solution, places=3)
