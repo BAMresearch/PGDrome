@@ -1348,13 +1348,17 @@ class PGDMesh(object):
 class PGDErrorComputation(object):
     
     def __init__(self, fixed_dim = 0, n_samples = 1, data_test =[],
-                 FOM_model =[], PGD_model=[], lim_samples =[],*args, **kwargs):
+                 FOM_model =[], PGD_model=[], lim_samples =[], PGD_path = [],
+                 fixed_var = [], *args, **kwargs):
         '''
             # fixed_dim: Fixed variables
             # n_samples: Number os samples
-            # data_test: PGD variables in which error must be computed (list: No. samples x No. variables)
+            # data_test: Snapshots in which error must be computed (list: No. samples x No. variables)
             # FOM_model: Full-Order model solution (class or ndarray, defined in the main script)
             # PGD_model: Solution computed through PGD in the main script (Class, defined in the main script)
+            # lim_samples: Maximum and minimum limits of the variables
+            # PGD_path: The path where the file conatining the PGD model is saved
+            # fixed_var: Points of the fixed variable in which the error has to be computed
 
         '''
         
@@ -1364,6 +1368,8 @@ class PGDErrorComputation(object):
         self.FOM_sol = FOM_model
         self.PGD_sol = PGD_model
         self.lim_smp = lim_samples
+        self.PGD_path = PGD_path
+        self.fixed_var = fixed_var
         
         self.free_dim = [item for item in list(range(0, len(self.PGD_sol.problem.meshes))) if item not in fixed_dim]
         
@@ -1410,7 +1416,12 @@ class PGDErrorComputation(object):
         and PGD solution is computed at the selected snapshots. The normalized 
         error is computed using the norm2 and normalized '''
         
-        if isinstance(u_FOM,np.ndarray):
+        if isinstance(u_FOM,np.ndarray) and isinstance(u_PGD,np.ndarray):
+            
+            residual = u_PGD.reshape(-1)-u_FOM.reshape(-1)
+            error = np.linalg.norm(residual,2)/np.linalg.norm(u_FOM.reshape(-1),2)
+            
+        elif isinstance(u_FOM,np.ndarray) and not isinstance(u_PGD,np.ndarray):
             
             residual = u_PGD.compute_vertex_values()[:]-u_FOM.reshape(-1)
             error = np.linalg.norm(residual,2)/np.linalg.norm(u_FOM.reshape(-1),2)
@@ -1420,34 +1431,65 @@ class PGDErrorComputation(object):
             
         return error
     
-    # def interp` ??
+    def read_PGD(self):
+        '''Load a previously computed PGD model from a file'''
+        
+        print('Not implemented yet')
+        # if self.mesh[free_dims[0]].attributes[some['attri']].interpolationfct == []:
+        #     self.logger.debug('create interpolation functions for modes')
+        #     for k in range(self.num_pgd_var):
+        #         info = {'name': 1,
+        #                 'family': some['mesh_type'][k],
+        #                 'degree': some['mesh_order'][k]
+        #                 }
+        #         self.mesh[k].attributes[some['attri']].interpolationInfo = info
+
+        #     # create interpolation functions for all PGD COORD
+        #     self.create_interpolation_fcts(np.arange(0, self.num_pgd_var), some['attri'])
     
     def evaluate_error(self):
         
         # Sampling:
         if not self.data_test:
-        
             self.data_test = self.sampling_LHS()
             
         # Initialize
         errorL2 = np.zeros(len(self.data_test))
         
         # Compute error
-        
         for i in range(len(self.data_test)):
             
             # FEM solution:
             #-----------------------------------
-            u_fem = self.FOM_sol(self.data_test[i])
+            if self.FOM_sol:
+                u_fem = self.FOM_sol(self.data_test[i])
+            else:
+                print('FEM not defined')
             
             # Solve PGD:
             #-----------------------------------
-            u_pgd = self.PGD_sol.evaluate(int(self.fixed_dim[0]), self.free_dim, self.data_test[i], 0)
-        
+            if self.PGD_sol:
+                # PGD model defined in the main script
+                u_pgd = self.PGD_sol.evaluate(int(self.fixed_dim[0]), self.free_dim, self.data_test[i], 0)
+
+            elif self.PGD_path:
+                # PGD model loaded from a file
+                # u_pgd = read_PGD(self)
+                self.read_PGD()
+                
+            else:
+                print('PGD model not defined')
+            
+            # print('evaluate PGD', u_pgd(self.x), 'ref solution', self.analytic_solution)
+
             # Compute error:
             #-----------------------------------
-            errorL2[i] = self.compute_SampleError(u_fem, u_pgd)
-            
+            if not self.fixed_var:
+                errorL2[i] = self.compute_SampleError(u_fem, u_pgd)
+            else:
+                u_pgdPoint = np.array([u_pgd(item) for item in self.fixed_var])
+                errorL2[i] = self.compute_SampleError(u_fem, u_pgdPoint)
+                             
         mean_errorL2 = np.mean(errorL2)
         max_errorL2 = np.max(errorL2)
         
