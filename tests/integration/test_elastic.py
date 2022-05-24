@@ -197,38 +197,60 @@ class PGDproblem(unittest.TestCase):
                                          FOM_model = fun_FOM,
                                          PGD_model = pgd_test
                                          )
-        errorL2, mean_errorL2, max_errorL2 = error_uPGD.evaluate_error()
+        error1, mean_error1, max_error1 = error_uPGD.evaluate_error()
         
-        print('Mean error',mean_errorL2)
-        print('Max. error',max_errorL2)
-                
+        print('Mean error', mean_error1)
+        print('Max. error', max_error1)
+        
+        self.assertTrue(mean_error1<1e-3)
+
         # Compute error at certain points of the fixed variable:
         #----------------------------------------------------------------------
         
         # Create variables array:
-        sampler = qmc.LatinHypercube(d=1, seed = 3452) # Dimensions
-        sample = sampler.random(n=1) # Number of samples
-        data_test = qmc.scale(sample, self.ranges[0][0], self.ranges[0][1]) # Scale the sample
-        data_test = data_test.tolist()
-        
+        x_test = [0.25, 0.5, 0.7, 0.94] # Coordinates
+
         # Solve Full-oorder model: FEM
-        fun_FOM2 = FOM_solution(meshes=meshes, x=np.array(data_test))
+        fun_FOM2 = FOM_solution(meshes=meshes, x=np.array(x_test))
         
         # Compute error:
         error_uPoints = PGDErrorComputation(fixed_dim = self.fixed_dim,
                                             n_samples = self.n_samples,
                                             FOM_model = fun_FOM2,
                                             PGD_model = pgd_test,
-                                            fixed_var = data_test
+                                            fixed_var = x_test
                                             )
 
-        errorL2P, mean_errorL2P, max_errorL2P = error_uPoints.evaluate_error()   
+        errorL2P, mean_error2, max_error2 = error_uPoints.evaluate_error()   
         
-        print('Mean error (Point)',mean_errorL2P)
-        print('Max. error (Point)',max_errorL2P)
+        print('Mean error (Point)', mean_error2)
+        print('Max. error (Point)', max_error2)
         
-        self.assertTrue(mean_errorL2P<0.01)
-        self.assertTrue(mean_errorL2<0.01)
+        self.assertTrue(mean_error2<1e-3)
+        
+        # Compute error at ONE point of the fixed variable:
+        #----------------------------------------------------------------------
+        
+        # Create variables array:
+        data_test = [0.5, 2, 1.5]  # Coordinate, Amplitude, Elastic modulus
+
+        # Solve Full-oorder model: FEM
+        fun_FOM2 = FOM_solution(meshes=meshes, x=data_test[0])
+        
+        # Compute error:
+        error_uPGD = PGDErrorComputation(fixed_dim = self.fixed_dim,
+                                         n_samples = self.n_samples,
+                                         FOM_model = fun_FOM,
+                                         PGD_model = pgd_test,
+                                         data_test = data_test
+                                         )
+
+        error3, mean_error3, max_error3 = error_uPoints.evaluate_error()   
+        
+        print('Mean error (Point)', mean_error3)
+        print('Max. error (Point)', max_error3)
+        
+        self.assertTrue(mean_error3<1e-3)
 
         # u_pgd = pgd_test.evaluate(0, [1, 2], [self.p, self.E], 0)
         # print('evaluate PGD', u_pgd(self.x), 'ref solution', self.analytic_solution)
