@@ -1055,65 +1055,6 @@ class PGD:
 
             return eval_array
 
-    def error_computation(self, points, analytic, some, param, free_dims=None, fixed_dim=0):
-        '''
-            compute errors between analytic solution and PGD solution for a given set of PGD_variables
-            compute error at dof points!!
-            :param points: random values of PGD extra coordinates list of list of len(self.num_pgd_var-1)
-            :param analytic: function to compute the analytic displacement Expression with input: one point, param
-
-            :param some: dictionary {'mesh_order':list, 'mesh_type':list, 'attri':value}
-            :param param: parameter dictionary for analytic function
-
-            :param free_dims: pgd dimesnions which are free corresponding to the points array (default None -> [1,2,3 .., num_pgd_var])
-            :param fixed_dim: pgd dimension over which error will be computed (default 0 --> x space)
-            :return: error_L2 and error_max
-        '''
-
-        # define interpolation for pgd solution
-        if free_dims == None:
-            free_dims = np.arange(1, self.num_pgd_var)  # default values all except 0
-
-        if self.mesh[free_dims[0]].attributes[some['attri']].interpolationfct == []:
-            self.logger.debug('create interpolation functions for modes')
-            for k in range(self.num_pgd_var):
-                info = {'name': 1,
-                        'family': some['mesh_type'][k],
-                        'degree': some['mesh_order'][k]
-                        }
-                self.mesh[k].attributes[some['attri']].interpolationInfo = info
-
-            # create interpolation functions for all PGD COORD
-            self.create_interpolation_fcts(np.arange(0, self.num_pgd_var), some['attri'])
-
-        # evaluate pgd and analytic solution at dof points and compute errors
-        # Function space for analytic solution
-        mesh_ana = self.evaluate(fixed_dim, free_dims, points[0], some['attri']).function_space().mesh()
-        V_ana = dolfin.FunctionSpace(mesh_ana, some['mesh_type'][fixed_dim], some['mesh_order'][fixed_dim])
-
-        error_L2 = list()
-        error_max = list()
-        # error_fenics = list()
-        for pp in points:
-            if self.mesh[0].typElements.lower() == 'polyline':
-                disp_PGD = self.evaluate(fixed_dim, free_dims, pp, some['attri'])
-                # print('in error',disp_PGD.vector()[:])
-                ana_exp = analytic(pp, param)
-                disp_ana = dolfin.interpolate(ana_exp, V_ana)
-                # print('in error',disp_ana.vector()[:])
-                # print('? ', len(disp_PGD.vector()[:]), len(disp_ana.vector()[:]))
-                diff = disp_PGD.vector()[:] - disp_ana.vector()[:]
-                error_L2.append(la.norm(diff) / la.norm(disp_ana.vector()[:]))
-                error_max.append(abs(diff).max() / abs(disp_ana.vector()[:]).max())
-                # using fenics error function geht nicht!! Value shapes do not match ??
-                # error_fenics.append(dolfin.errornorm(disp_PGD,disp_ana,'L2')/dolfin.norm(disp_ana,'L2'))
-            else:
-                err = 'error computation currently only for 1D'
-                self.logger.error(err)
-                raise NotImplementedError(err)
-
-        return error_L2, error_max
-
     def save_modes_latex(self, folder, attri, prefix='_'):
         '''
             save 1D modes in a file which can be used in latex for 1D plotting (dof values!!)
