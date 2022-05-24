@@ -1348,7 +1348,7 @@ class PGDMesh(object):
 class PGDErrorComputation(object):
     
     def __init__(self, fixed_dim = 0, n_samples = 1, data_test =[],
-                 FOM_model =[], PGD_model=[], lim_samples =[], PGD_path = [],
+                 FOM_model =[], PGD_model=[], lim_samples =[],
                  fixed_var = [], *args, **kwargs):
         '''
             # fixed_dim: Fixed variables
@@ -1357,7 +1357,6 @@ class PGDErrorComputation(object):
             # FOM_model: Full-Order model solution (class or ndarray, defined in the main script)
             # PGD_model: Solution computed through PGD in the main script (Class, defined in the main script)
             # lim_samples: Maximum and minimum limits of the variables
-            # PGD_path: The path where the file conatining the PGD model is saved
             # fixed_var: Points of the fixed variable in which the error has to be computed
 
         '''
@@ -1368,7 +1367,6 @@ class PGDErrorComputation(object):
         self.FOM_sol = FOM_model
         self.PGD_sol = PGD_model
         self.lim_smp = lim_samples
-        self.PGD_path = PGD_path
         self.fixed_var = fixed_var
         
         self.free_dim = [item for item in list(range(0, len(self.PGD_sol.problem.meshes))) if item not in fixed_dim]
@@ -1431,22 +1429,6 @@ class PGDErrorComputation(object):
             
         return error
     
-    def read_PGD(self):
-        '''Load a previously computed PGD model from a file'''
-        
-        print('Not implemented yet')
-        # if self.mesh[free_dims[0]].attributes[some['attri']].interpolationfct == []:
-        #     self.logger.debug('create interpolation functions for modes')
-        #     for k in range(self.num_pgd_var):
-        #         info = {'name': 1,
-        #                 'family': some['mesh_type'][k],
-        #                 'degree': some['mesh_order'][k]
-        #                 }
-        #         self.mesh[k].attributes[some['attri']].interpolationInfo = info
-
-        #     # create interpolation functions for all PGD COORD
-        #     self.create_interpolation_fcts(np.arange(0, self.num_pgd_var), some['attri'])
-    
     def evaluate_error(self):
         
         # Sampling:
@@ -1464,7 +1446,8 @@ class PGDErrorComputation(object):
             if self.FOM_sol:
                 u_fem = self.FOM_sol(self.data_test[i])
             else:
-                print('FEM not defined')
+                self.logger.error('FEM not defined')
+                raise ValueError('FEM not defined')
             
             # Solve PGD:
             #-----------------------------------
@@ -1474,14 +1457,13 @@ class PGDErrorComputation(object):
 
             elif self.PGD_path:
                 # PGD model loaded from a file
-                # u_pgd = read_PGD(self)
-                self.read_PGD()
+                self.logger.error('Not implemented')
+                raise ValueError('Not implemented')
                 
             else:
-                print('PGD model not defined')
+                self.logger.error('PGD model not defined')
+                raise ValueError('PGD model not defined')
             
-            # print('evaluate PGD', u_pgd(self.x), 'ref solution', self.analytic_solution)
-
             # Compute error:
             #-----------------------------------
             if not self.fixed_var:
