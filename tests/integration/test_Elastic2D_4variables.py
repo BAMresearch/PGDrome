@@ -1,17 +1,22 @@
-# -*- coding: utf-8 -*-
 """
 TEST: Elastic plate (2D) is modeled using PGD and FEM. The displacemetns 
 computed by the two mehods are compared to check its working well.
 
 """
 
+# import fenics as fe
 import unittest
-import pytest
 from dolfin import *
+#import matplotlib.pyplot as plt
 import numpy as np
 import os
 from pgdrome.solver import PGDProblem1
+from pgdrome.model import PGDErrorComputation
 
+
+###############################################################################
+################################     INPUT     ################################
+###############################################################################
 
 # MESHES
 #==============================================================================
@@ -35,7 +40,7 @@ def create_meshes(mesh_0,V_X,input_mesh):
             aux_V = FunctionSpace(aux_mesh,input_mesh[k][2],input_mesh[k][3])
             meshes.append(aux_mesh) # Get out of the IF when k==0 is written
             Vs.append(aux_V) # Get out of the IF when k==0 is written
-        
+    
         else:
             print("Error: Not well defined")
             
@@ -45,13 +50,24 @@ def create_meshes(mesh_0,V_X,input_mesh):
 #==============================================================================
 def create_bc(Vs,dom,param):
     
-    def BC_ConstDisp(x, on_boundary):
+    def BC_Const_X(x, on_boundary):
         tol = 1e-5
-        return on_boundary and near(x[0], 0, tol) or near(x[1], 0, tol) or near(x[0], 1, tol)  
+        return on_boundary and near(x[0], 0, tol) or near(x[0], 1, tol)
+
+    def BC_Const_Y(x, on_boundary):
+        tol = 1e-5
+        return on_boundary and near(x[1], 0, tol)
+    
+    # def BC_ConstDisp(x, on_boundary):
+    #     tol = 1e-5
+    #     return on_boundary and near(x[0], 0, tol) or near(x[1], 0, tol) or near(x[0], 1, tol)  
     
     # on_boundary: Dolfin flags nodes on the boundary with on_boundary
-    u0 = Constant((0.,0.))
-    bc = DirichletBC(Vs[0],u0,BC_ConstDisp)
+    bc = [DirichletBC(Vs[0].sub(0), Constant(0.), BC_Const_X),\
+          DirichletBC(Vs[0].sub(1), Constant(0.), BC_Const_Y)]
+        
+    # u0 = Constant((0.,0.))
+    # bc = DirichletBC(Vs[0],u0,BC_ConstDisp)
     
     return [bc, 0, 0, 0]
 
@@ -93,7 +109,7 @@ def problem_assemble_lhs(fct_F,var_F,Fs,meshes,dom,param,typ,dim):
     if typ == 'r':
         a = Constant(assemble(Fs[1] * Fs[1] * dx(meshes[1])) \
             * assemble(Fs[2] * param["Efunc"] * Fs[2] * dx(meshes[2])) \
-            * assemble(Fs[3] * param["nufunc"][0] * Fs[3] * dx(meshes[3]))) \
+            * assemble(Fs[3] * param["nufunc"][0] * Fs[3] * dx(meshes[3])) )\
             * inner(param["aux_C"][0]*epsilon(fct_F),epsilon(var_F)) * dx(meshes[0]) \
             + Constant(assemble(Fs[1] * Fs[1] * dx(meshes[1])) \
             * assemble(Fs[2] * param["Efunc"] * Fs[2] * dx(meshes[2])) \
@@ -104,7 +120,7 @@ def problem_assemble_lhs(fct_F,var_F,Fs,meshes,dom,param,typ,dim):
     if typ == 's':
         a = Constant(assemble(inner(param["aux_C"][0]*epsilon(Fs[0]),epsilon(Fs[0])) * dx(meshes[0])) \
             * assemble(Fs[2] * param["Efunc"] * Fs[2] * dx(meshes[2])) \
-            * assemble(Fs[3] * param["nufunc"][0] * Fs[3] * dx(meshes[3])) )\
+            * assemble(Fs[3] * param["nufunc"][0] * Fs[3] * dx(meshes[3])) ) \
             * var_F* fct_F * dx(meshes[1]) \
             + Constant(assemble(inner(param["aux_C"][1]*epsilon(Fs[0]),epsilon(Fs[0])) * dx(meshes[0])) \
             * assemble(Fs[2] * param["Efunc"] * Fs[2] * dx(meshes[2])) \
@@ -159,7 +175,7 @@ def problem_assemble_rhs(fct_F, var_F, Fs, meshes, dom, param, G, PGD_func, typ,
                     * inner(param["aux_C"][0]*epsilon(PGD_func[0][old]),epsilon(var_F)) * dx(meshes[0]) \
                     - Constant(assemble(Fs[1] * PGD_func[1][old] * dx(meshes[1])) \
                     * assemble(Fs[2] * param["Efunc"] * PGD_func[2][old] * dx(meshes[2])) \
-                    * assemble(Fs[3] * param["nufunc"][1] * PGD_func[3][old] * dx(meshes[3])) )\
+                    * assemble(Fs[3] * param["nufunc"][1] * PGD_func[3][old] * dx(meshes[3]))) \
                     * inner(param["aux_C"][1]*epsilon(PGD_func[0][old]),epsilon(var_F)) * dx(meshes[0])
                         
     # Computing S assuming R, T and V is known:
@@ -167,7 +183,7 @@ def problem_assemble_rhs(fct_F, var_F, Fs, meshes, dom, param, G, PGD_func, typ,
         # for ext in range(len(G[0][1])):
         l += Constant(assemble(dot(G[0][0][0],Fs[0]) * ds) \
             * assemble(Fs[2] * dx(meshes[2])) \
-            * assemble(Fs[3] * dx(meshes[3])) )\
+            * assemble(Fs[3] * dx(meshes[3]))) \
             * var_F * param["Afunc"] * dx(meshes[1])
 
         if nE > 0:
@@ -198,7 +214,7 @@ def problem_assemble_rhs(fct_F, var_F, Fs, meshes, dom, param, G, PGD_func, typ,
                     * var_F * param["Efunc"] * PGD_func[2][old] * dx(meshes[2]) \
                     - Constant(assemble(inner(param["aux_C"][1]*epsilon(PGD_func[0][old]),epsilon(Fs[0])) * dx(meshes[0])) \
                     * assemble(Fs[1]*PGD_func[1][old] *dx(meshes[1])) \
-                    * assemble(Fs[3] * param["nufunc"][1] * PGD_func[3][old] * dx(meshes[3])) )\
+                    * assemble(Fs[3] * param["nufunc"][1] * PGD_func[3][old] * dx(meshes[3])) ) \
                     * var_F * param["Efunc"] * PGD_func[2][old] * dx(meshes[2])
 
     # Computing V assuming R, S and T is known:
@@ -245,14 +261,13 @@ def main(Vs):
     coef_1 = Expression("1./(2. * (1.0+x[0]) * (1.-2.*x[0]))", degree=1)
     coef_2 = Expression("1./(2. * (1.0 +x[0]))", degree=1)
     coef = [coef_1, coef_2]
-    
+        
     param = {"aux_C": aux_C, "nufunc": coef, "Efunc":Expression('x[0]', degree=4),\
-             "Afunc":Expression('x[0]', degree=4)} # Define parameteres
+         "Afunc":Expression('x[0]', degree=4), "g1":Constant((0.0, 0.1))} # Define parameteres
     
     # Define BC:
     #-----------------------------
-    g1 = [Constant((0.0, 0.5))] # External load
-    G = [[g1]]
+    G = [[[param['g1']]]]
     
     # Define the problem
     #-----------------------------
@@ -273,7 +288,8 @@ def main(Vs):
     # Solve the problem
     #-----------------------------
     pgd_prob.stop_fp='norm'
-    pgd_prob.tol_fp_it=1e-1
+    # pgd_prob.max_fp_it = 5
+    pgd_prob.tol_fp_it = 5e-3
     pgd_prob.tol_abs = 1e-3
     pgd_prob.solve_PGD(_problem='linear')
     
@@ -286,17 +302,68 @@ def main(Vs):
 
 # TEST: PGD result VS FEM result
 #==============================================================================  
+
+# Finite Element Model
+#=======================================
+class Reference_solution():
+    
+    def __init__(self,Vs=[], param=[], meshes=[]):
+        
+        self.Vs = Vs # Location
+        self.param = param # Parameters
+        self.meshes = meshes # Meshes
+        
+        # Dirichlet BC:
+        self.bc = create_bc(self.Vs,0 ,self.param)
+        
+        # Neumman BC:
+        bnd = create_dom(self.Vs, self.param)
+        self.ds = Measure('ds', domain=self.meshes[0], subdomain_data=bnd[0], subdomain_id=1) # Integral over the boundary   
+        
+    def fem_definition(self,mu,lmbda,g):
+        u = TrialFunction(self.Vs[0])
+        v = TestFunction(self.Vs[0])
+        d = u.geometric_dimension()
+        
+        def epsilon2(u):
+            return 0.5*(grad(u) + grad(u).T)
+
+        def sigma(u):
+            return lmbda*tr(epsilon2(u))*Identity(d) + 2*mu*epsilon2(u)
+
+        rhs = inner(sigma(u),epsilon2(v))*dx  # Right hand side (RHS)
+        lhs = dot(g,v)*self.ds # Left hand side (LHS)
+        
+        # Solve:
+        u = Function(self.Vs[0])
+        solve(rhs==lhs,u,self.bc[0])
+        
+        return u
+            
+    def __call__(self, data_test):
+        
+        # Lame parameters:
+        mu = 0.5*data_test[1]/(1+data_test[2]) # 2nd Lame constant
+        lmbda = data_test[1]*data_test[2]/((1-2*data_test[2])*(1+data_test[2])) # 1st Lame constant !! No name lambda because it is the name of a command in python
+        g = data_test[0]*self.param['g1']
+        
+        ref_sol = self.fem_definition(mu, lmbda, g)
+        
+        return ref_sol
+ 
+# PGD model and Error computation
+#=======================================
 class PGDproblem(unittest.TestCase):
     
     def setUp(self):
         
-        self.E = 1 # Elastic modulus
-        self.A = 1 # Amplitude
-        self.nu = 0.3 # Poisson ratio
+        self.seq_fp = [0, 1, 2, 3] # Sequence of Fixed Point iteration
+        self.fixed_dim = [0] # Fixed variable
+        self.n_samples = 10 # Number of samples
         
     def TearDown(self):
         pass
-
+    
     def test_solver(self):
         
         # MESH
@@ -307,52 +374,30 @@ class PGDproblem(unittest.TestCase):
 
         # [[X1min, X1max, X2min,  X2max,...],[ne1, ne2,...], 'Family', degree]
         mesh_v1 = [[0., 2.],[10],'Lagrange', 1] # Variable 1: Loading amplitude
-        mesh_v2 = [[0.5, 1.5],[50],'Lagrange', 1] # Variable 2: Young's modulus
-        mesh_v3 = [[0.1, 0.4],[50],'Lagrange', 1] # Variable 3: Poisson's ratio
+        mesh_v2 = [[0.5, 1.5],[10],'Lagrange', 1] # Variable 2: Young's modulus
+        mesh_v3 = [[0.2, 0.3],[10],'Lagrange', 1] # Variable 3: Poisson's ratio
         input_mesh = [mesh_geo,mesh_v1,mesh_v2,mesh_v3] # Grouping meshes
         
         meshes, Vs = create_meshes(mesh_0,V_X,input_mesh)
         
-        # PGD solution
+        # Computing solution and error
         #======================================================================
-        
-        # Solve PGD:
-        pgd_test, param = main(Vs)
-        u_pgd = pgd_test.evaluate(0, [1,2,3], [self.E,self.A,self.nu], 0) # The last zero means to compute displacements
-        uvec_pgd = u_pgd.compute_vertex_values()
-        
-        # FEM solution
-        #======================================================================
-        mu = 0.5*self.E/(1+self.nu) # 2nd Lame constant
-        lmbda = self.E*self.nu/((1-2*self.nu)*(1+self.nu)) # 1st Lame constant (No name lambda because it is the name of a command in python)
-        g = Expression(('0.0','0.5'), degree =1)
-                       
-        # Dirichlet BC:
-        bc = create_bc(Vs,0 ,param)
-        
-        # Neumman BC:
-        bnd = create_dom(Vs, param)
-        ds = Measure('ds', domain=meshes[0], subdomain_data=bnd[0], subdomain_id=1) # Integral over the boundary   
+        pgd_test, param = main(Vs) # Computing PGD
 
-        u = TrialFunction(Vs[0])
-        v = TestFunction(Vs[0])
-        d = u.geometric_dimension()
+        fun_FOM = Reference_solution(Vs=Vs, param=param, meshes=meshes) # Computing Full-Order model: FEM
         
-        def epsilon2(u):
-            return 0.5*(grad(u) + grad(u).T)
-
-        def sigma(u):
-            return lmbda*tr(epsilon2(u))*Identity(d) + 2*mu*epsilon2(u)
-
-        rhs = inner(sigma(u),epsilon2(v))*dx  # Right hand side (RHS)
-        lhs= dot(g,v)*ds # Left hand side (lhs)
+        error_uPGD = PGDErrorComputation(fixed_dim = self.fixed_dim,
+                                         n_samples = self.n_samples,
+                                         FOM_model = fun_FOM,
+                                         PGD_model = pgd_test
+                                         )
         
-        # Solve:
-        u = Function(Vs[0])
-        solve(rhs==lhs,u,bc[0])
-        errorL2 = np.linalg.norm(u_pgd.vector()[:]-u.vector()[:],2)/np.linalg.norm(u.vector()[:],2)
-        print(errorL2)
-        self.assertTrue(errorL2<0.03)
+        errorL2, mean_errorL2, max_errorL2 = error_uPGD.evaluate_error() # Computing Error
+        
+        print('Mean error',mean_errorL2)
+        print('Max. error',max_errorL2)
+        
+        self.assertTrue(mean_errorL2<0.01)
 
 if __name__ == '__main__':
 

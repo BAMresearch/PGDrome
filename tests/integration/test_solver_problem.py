@@ -4,18 +4,13 @@ r'''
         boundary: fixed at left side
         load: at top: first half with 1.5xloadfactor second half 0.5xloadfactor
         elastic plane strain C(E,nu)
-
           ||||F2||||||F1|||
         |>-----------------
         |>----------------- Ly
                 Lx
         with E = lam_E E_0 and F2=lam_p F20/ F1=lam_p F10
-
     PGD for displacements with PGD variable: X (x,y space), lam_p (load factor), lam_E (E Module factor), nu (Poission ratio)
-
     DGL: \int var_eps C(E,nu) eps dX = \int var_u F2 dX_F2 + \int var_u F1 dX_F1
-
-
 '''
 
 import unittest
@@ -450,9 +445,3 @@ if __name__ == '__main__':
     # logging.basicConfig(level=logging.DEBUG)
 
     unittest.main()
-
-
-
-
-
-
