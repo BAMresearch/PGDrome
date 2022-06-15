@@ -1293,7 +1293,7 @@ class PGDErrorComputation(object):
                  fixed_var = [], *args, **kwargs):
         '''
             # fixed_dim: Fixed variables
-            # n_samples: Number os samples
+            # n_samples: Number of samples
             # data_test: Snapshots in which error must be computed (list: No. samples x No. variables)
             # FOM_model: Full-Order model solution (class or ndarray, defined in the main script)
             # PGD_model: Solution computed through PGD in the main script (Class, defined in the main script)
@@ -1301,6 +1301,7 @@ class PGDErrorComputation(object):
             # fixed_var: Points of the fixed variable in which the error has to be computed
 
         '''
+        self.logger = logging.getLogger(__name__)
         
         self.fixed_dim = fixed_dim
         self.n_smp = n_samples 
@@ -1334,7 +1335,7 @@ class PGDErrorComputation(object):
                     max_bnd[ind] = float(max(self.PGD_sol.problem.meshes[i].coordinates())) # Maximum boundary
                     ind = ind+1
                 else:
-                    print("Not implemented")
+                    self.logger.error("Not implemented")
         else:
             for i in self.free_dim:
                 if len(self.lim_smp[i]) == 2:
@@ -1342,7 +1343,7 @@ class PGDErrorComputation(object):
                     max_bnd[ind] = float(max(self.lim_smp[i])) # Maximum boundary
                     ind = ind+1
                 else:
-                    print("Not implemented")
+                    self.logger.error("Not implemented")
                 
         data_test = qmc.scale(sample, min_bnd, max_bnd) # Scale the sample
         data_test = data_test.tolist()

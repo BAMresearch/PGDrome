@@ -380,7 +380,7 @@ class PGDproblem(unittest.TestCase):
         
         meshes, Vs = create_meshes(mesh_0,V_X,input_mesh)
         
-        # Computing solution and error
+        # Computing error at random set of pgd variables over whole x space
         #======================================================================
         pgd_test, param = main(Vs) # Computing PGD
 
