@@ -436,10 +436,10 @@ class TestSolverProblem(unittest.TestCase):
         _, v_e = create_meshesExtra(self.numElems, self.ords[1:4], self.ranges)
         # solve PGD problem with linear solver
         pgd_prob_lin, pgd_s_lin = main_normal([v_x] + v_e, self.params, writeFlag=self.write, name='PGDsolution', problem='linear')
-        # solve PGD problem with nonlinear solver
+        solve PGD problem with nonlinear solver
         pgd_prob_nl, pgd_s_nl = main_normal([v_x] + v_e, self.params, writeFlag=self.write, name='PGDsolution', problem='nonlinear', settings={"relative_tolerance":1e-8, "linear_solver": "mumps"})
 
-        # # check solver convergences
+        # check solver convergences
         print('PGD amplitudes', pgd_prob_lin.amplitude, pgd_prob_nl.amplitude)
         amplitude_diff_max = (np.array(pgd_prob_lin.amplitude) - np.array(pgd_prob_nl.amplitude)).max()
         print('diff amplitudes',amplitude_diff_max)
@@ -462,18 +462,22 @@ class TestSolverProblem(unittest.TestCase):
 
         # check PGDErrorComputation class with manually computation
         # over space x at given PGD coordinates
-        error_class = PGDErrorComputation(fixed_dim=[0], n_samples=1, data_test=[[self.p, self.E, self.nu]],
-                                           FOM_model=ref_fem, PGD_model=pgd_s_lin)
+        error_class = PGDErrorComputation(fixed_dim=[0],
+                                          data_test=[[self.p, self.E, self.nu]],
+                                          FOM_model=ref_fem,
+                                          PGD_model=pgd_s_lin)
+        
         errors, mean_errorL2, max_errorL2 = error_class.evaluate_error()  # Computing Error
         print(errors, mean_errorL2, max_errorL2)
         self.assertAlmostEqual(max_errorL2, errorL2, places=8)
+        
         # # specified point
-        # ref_fem.x_values=[self.x]
-        # print(ref_fem([self.p,self.E,self.nu]))
-        # PGDErrorComputation.fixed_var=[self.x]
-        # errors, mean_errorL2, max_errorL2 = error_class.evaluate_error()  # Computing Error
-        # print(errors, mean_errorL2, max_errorL2)
-        # self.assertAlmostEqual(max_errorL2, error_point, places=8)
+        ref_fem.x_values=[self.x]
+        print(ref_fem([self.p,self.E,self.nu]))
+        error_class.fixed_var=[self.x]
+        errors, mean_errorL2, max_errorL2 = error_class.evaluate_error()  # Computing Error
+        print(errors, mean_errorL2, max_errorL2)
+        self.assertAlmostEqual(max_errorL2, error_point, places=8)
 
         # suggested way to check solution:
         # error to fem computation at random values for PGD variables over space x
@@ -489,5 +493,7 @@ class TestSolverProblem(unittest.TestCase):
 if __name__ == '__main__':
     # import logging
     # logging.basicConfig(level=logging.DEBUG)
+
+    unittest.main()
 
     unittest.main()
