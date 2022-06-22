@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 TEST: Elastic plate (2D) is modeled using PGD and FEM. The displacemetns 
 computed by the two mehods are compared to check its working well.
@@ -307,11 +308,12 @@ def main(Vs):
 #=======================================
 class Reference_solution():
     
-    def __init__(self,Vs=[], param=[], meshes=[]):
+    def __init__(self,Vs=[], param=[], meshes=[], x_fixed=[]):
         
         self.Vs = Vs # Location
         self.param = param # Parameters
         self.meshes = meshes # Meshes
+        self.x_fixed = x_fixed # Specified data-poin to compute the error
         
         # Dirichlet BC:
         self.bc = create_bc(self.Vs,0 ,self.param)
@@ -338,7 +340,14 @@ class Reference_solution():
         u = Function(self.Vs[0])
         solve(rhs==lhs,u,self.bc[0])
         
-        return u
+        # If specific points are given
+        if self.x_fixed:
+            u_out = np.zeros((len(self.x_fixed),self.meshes[0].topology().dim()))
+            for i in range(len(self.x_fixed)):
+                u_out[i,:]=np.array(u(self.x_fixed[i]))
+            return u_out
+        else:
+            return u # return full vector
             
     def __call__(self, data_test):
         
@@ -366,7 +375,7 @@ class PGDproblem(unittest.TestCase):
     
     def test_solver(self):
         
-        # MESH
+        # Mesh
         #======================================================================
         mesh_0 = RectangleMesh(Point([0,0]), Point([1,1]), 10, 10,'left')
         V_X = VectorFunctionSpace(mesh_0,'Lagrange',2)
@@ -380,7 +389,7 @@ class PGDproblem(unittest.TestCase):
         
         meshes, Vs = create_meshes(mesh_0,V_X,input_mesh)
         
-        # Computing error at random set of pgd variables over whole x space
+        # Computing solution and error
         #======================================================================
         pgd_test, param = main(Vs) # Computing PGD
 
@@ -393,6 +402,31 @@ class PGDproblem(unittest.TestCase):
                                          )
         
         errorL2, mean_errorL2, max_errorL2 = error_uPGD.evaluate_error() # Computing Error
+        
+        print('Mean error',mean_errorL2)
+        print('Max. error',max_errorL2)
+        
+        self.assertTrue(mean_errorL2<0.01)
+        
+        # Computing solution and error at a fixed point
+        #======================================================================
+
+        # Create variables array:
+        x_test = [[0.5, 0.5]]  # Coordinates
+        data_test = [[1, 1, 0.25]] # Amplitude, Elastic modulus
+
+        # Solve Full-oorder model: FEM
+        fun_FOM2 = Reference_solution(Vs=Vs, param=param, meshes=meshes, x_fixed=x_test) # Computing Full-Order model: FEM
+        
+        # Compute error:
+        error_uPGD2 = PGDErrorComputation(fixed_dim = self.fixed_dim,
+                                         FOM_model = fun_FOM2,
+                                         PGD_model = pgd_test,
+                                         data_test = data_test,
+                                         fixed_var = x_test
+                                         )
+        
+        errorL2, mean_errorL2, max_errorL2 = error_uPGD2.evaluate_error() # Computing Error
         
         print('Mean error',mean_errorL2)
         print('Max. error',max_errorL2)
