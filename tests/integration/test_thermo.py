@@ -1,10 +1,7 @@
 '''
     simple 1D PGD example (heat equation with a point heat source) with three PGD variables (space, time and heat input)
-
     solving PGD problem in standard way using FEM
-
     returning PGDModel (as forward model) or PGD instance
-
 '''
 
 import unittest
@@ -188,11 +185,12 @@ def main(vs, name=None):
 #=======================================
 class Reference_solution():
     
-    def __init__(self,Vs=[], param=[], meshes=[]):
+    def __init__(self,Vs=[], param=[], meshes=[], x_fixed=[]):
         
         self.Vs = Vs # Location
         self.param = param # Parameters
         self.meshes = meshes # Meshes
+        self.x_fixed = x_fixed
         
         # Dirichlet BC:
         self.bc = create_bc(self.Vs,0 ,self.param)
@@ -230,8 +228,17 @@ class Reference_solution():
             fenics.solve(a == L, T)
             # Update previous solution
             T_n.assign(T)
+            
+        # If specific points are given
+        if self.x_fixed:
+            T_out = np.zeros((len(self.x_fixed),self.meshes[0].topology().dim()))
+            for i in range(len(self.x_fixed)):
+                T_out[i,:]=np.array(T(self.x_fixed[i]))
+            return T_out
+        else:
+            return T # return full vector
         
-        return T
+        # return T
             
     def __call__(self, data_test):
         
@@ -276,10 +283,10 @@ class PGDproblem(unittest.TestCase):
         fun_FOM = Reference_solution(Vs=Vs, param=param, meshes=meshes) # Computing Full-Order model: FEM
         
         error_uPGD = PGDErrorComputation(fixed_dim = self.fixed_dim,
-                                         n_samples = self.n_samples,
-                                         FOM_model = fun_FOM,
-                                         PGD_model = pgd_test
-                                         )
+                                          n_samples = self.n_samples,
+                                          FOM_model = fun_FOM,
+                                          PGD_model = pgd_test
+                                          )
         
         errorL2, mean_errorL2, max_errorL2 = error_uPGD.evaluate_error() # Computing Error
         
@@ -287,6 +294,31 @@ class PGDproblem(unittest.TestCase):
         print('Max. error',max_errorL2)
         
         self.assertTrue(mean_errorL2<0.03)
+        
+        # Computing solution and error
+        #======================================================================
+        
+        # Create variables array:
+        x_test = [[0.05]]  # x (fixed variable)
+        data_test = [[1., 0.8]] # t, eta
+        
+        # Solve Full-oorder model: FEM
+        fun_FOM2 = Reference_solution(Vs=Vs, param=param, meshes=meshes, x_fixed=x_test) # Computing Full-Order model: FEM
+
+        # Compute error:
+        error_uPGD2 = PGDErrorComputation(fixed_dim = self.fixed_dim,
+                                          FOM_model = fun_FOM2,
+                                          PGD_model = pgd_test,
+                                          data_test = data_test,
+                                          fixed_var = x_test
+                                          )
+
+        error2, mean_error2, max_error2 = error_uPGD2.evaluate_error()  
+        
+        print('Mean error',mean_error2)
+        print('Max. error',max_error2)
+        
+        self.assertTrue(mean_error2<0.05)
         
 if __name__ == '__main__':
     dolfin.set_log_level(dolfin.LogLevel.ERROR)
