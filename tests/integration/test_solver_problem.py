@@ -436,7 +436,7 @@ class TestSolverProblem(unittest.TestCase):
         _, v_e = create_meshesExtra(self.numElems, self.ords[1:4], self.ranges)
         # solve PGD problem with linear solver
         pgd_prob_lin, pgd_s_lin = main_normal([v_x] + v_e, self.params, writeFlag=self.write, name='PGDsolution', problem='linear')
-        solve PGD problem with nonlinear solver
+        # solve PGD problem with nonlinear solver
         pgd_prob_nl, pgd_s_nl = main_normal([v_x] + v_e, self.params, writeFlag=self.write, name='PGDsolution', problem='nonlinear', settings={"relative_tolerance":1e-8, "linear_solver": "mumps"})
 
         # check solver convergences
