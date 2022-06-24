@@ -149,7 +149,10 @@ def main(vs, writeFlag=False, name=None):
 
 class FOM_solution():
     
-    def __init__(self, x = []):
+    # The output of the FOM_solution have to provide the full-order model
+    # solution. The type can be ndarray or a fenics function.
+    
+    def __init__(self, meshes = [], x = []):
         
         self.x = x
         
@@ -177,7 +180,7 @@ class PGDproblem(unittest.TestCase):
     def TearDown(self):
         pass
 
-    def test_error_computation(self):
+    def test_standard_solver(self):
         
         # define meshes
         meshes, vs = create_meshes([113, 2, 100], self.ords, self.ranges)  # start meshes
@@ -188,10 +191,10 @@ class PGDproblem(unittest.TestCase):
         # solve PGD problem
         pgd_test = main(vs, writeFlag=self.write, name='PGDsolution_O%i' % self.ord)
         
-        # Create full order model for full x space
-        fun_FOM = FOM_solution(x = meshes[0].coordinates())
+        # Solve Full-order model: FEM
+        fun_FOM = FOM_solution(meshes = meshes, x = meshes[0].coordinates())
         
-        # Compute error at random PGD coordinates over space self.fixed_dim = 0 (=x)
+        # Compute error
         error_uPGD = PGDErrorComputation(fixed_dim = self.fixed_dim,
                                          n_samples = self.n_samples,
                                          FOM_model = fun_FOM,
@@ -199,16 +202,20 @@ class PGDproblem(unittest.TestCase):
                                          )
         error1, mean_error1, max_error1 = error_uPGD.evaluate_error()
         
-        print('Mean error over x', mean_error1)
-        print('Max. error over x', max_error1)
+        print('Mean error', mean_error1)
+        print('Max. error', max_error1)
         
-        self.assertTrue(mean_error1<1e-5)
+        self.assertTrue(mean_error1<1e-3)
 
         # Compute error at certain points of the fixed variable:
+        #----------------------------------------------------------------------
+        
+        # Create variables array:
         x_test = [0.25, 0.5, 0.7, 0.94] # Coordinates
-        # set-up FOM for that specified coordinates
-        fun_FOM2 = FOM_solution(x=np.array(x_test))
 
+        # Solve Full-order model: FEM
+        fun_FOM2 = FOM_solution(meshes=meshes, x=np.array(x_test))
+        
         # Compute error:
         error_uPoints = PGDErrorComputation(fixed_dim = self.fixed_dim,
                                             n_samples = self.n_samples,
@@ -219,37 +226,39 @@ class PGDproblem(unittest.TestCase):
 
         errorL2P, mean_error2, max_error2 = error_uPoints.evaluate_error()   
         
-        print('Mean error (specified x mesh)', mean_error2)
-        print('Max. error (specified x mesh)', max_error2)
+        print('Mean error (Point)', mean_error2)
+        print('Max. error (Point)', max_error2)
         
-        self.assertTrue(mean_error2<1e-5)
+        self.assertTrue(mean_error2<1e-3)
         
-        # Compute error at ONE specified set for coordinates
+        # Compute error at ONE point of the fixed variable:
+        #----------------------------------------------------------------------
+        
         # Create variables array:
-        data_test = [0.5, 2, 1.5]  # Coordinate, Amplitude, Elastic modulus
+        x_test = [0.5]  # Coordinates
+        data_test = [[2, 1.5]] # Amplitude, Elastic modulus
 
         # Solve Full-oorder model: FEM
-        fun_FOM2 = FOM_solution(x=data_test[0])
-
+        fun_FOM3 = FOM_solution(meshes=meshes, x=np.array(x_test))
+        
         # Compute error:
-        error_uPGD = PGDErrorComputation(fixed_dim=self.fixed_dim,
-                                         n_samples=self.n_samples,
-                                         FOM_model=fun_FOM,
-                                         PGD_model=pgd_test,
-                                         data_test=data_test
+        error_uPGD = PGDErrorComputation(fixed_dim = self.fixed_dim,
+                                         FOM_model = fun_FOM3,
+                                         PGD_model = pgd_test,
+                                         data_test = data_test,
+                                         fixed_var = x_test
                                          )
 
-        error3, mean_error3, max_error3 = error_uPoints.evaluate_error()
-
+        error3, mean_error3, max_error3 = error_uPGD.evaluate_error()   
+        
         print('Mean error (Point)', mean_error3)
         print('Max. error (Point)', max_error3)
+        
+        self.assertTrue(mean_error3<1e-3)
 
-        self.assertTrue(mean_error3 < 1e-5)
-
-        # alternative by hand comparision for one specified set
-        u_pgd = pgd_test.evaluate(0, [1, 2], data_test[1::], 0)
-        print('evaluate PGD', u_pgd(data_test[0]), 'ref solution', fun_FOM2(data_test[1::]))
-        self.assertAlmostEqual(u_pgd(data_test[0]), fun_FOM2(data_test[1::]), places=3)
+        # u_pgd = pgd_test.evaluate(0, [1, 2], [self.p, self.E], 0)
+        # print('evaluate PGD', u_pgd(self.x), 'ref solution', self.analytic_solution)
+        # self.assertAlmostEqual(u_pgd(self.x), self.analytic_solution, places=3)
 
 
 if __name__ == '__main__':
