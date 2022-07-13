@@ -313,7 +313,7 @@ class Reference_solution():
         self.Vs = Vs # Location
         self.param = param # Parameters
         self.meshes = meshes # Meshes
-        self.x_fixed = x_fixed # Specified data-poin to compute the error
+        self.x_fixed = x_fixed # Specified data-point to compute the error
         
         # Dirichlet BC:
         self.bc = create_bc(self.Vs,0 ,self.param)
