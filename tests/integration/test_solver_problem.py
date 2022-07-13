@@ -387,7 +387,7 @@ class FEM_reference():
         nu = values[2]
         E = lam_E * self.params['E_0']
 
-        #solve problem
+        # Solve problem
         v = dolfin.TestFunction(self.V_x)
         u = dolfin.TrialFunction(self.V_x)
         a = dolfin.inner(self.sigma(u,E,nu), self.eps(v)) * dolfin.dx
@@ -445,7 +445,7 @@ class TestSolverProblem(unittest.TestCase):
         print('diff amplitudes',amplitude_diff_max)
         self.assertTrue(amplitude_diff_max < 1e-8)
 
-        ### Error checks
+        # Error checks
         # error to FEM at one point in x and specified PGD parameters (for linear solver problem)
         ref_fem = FEM_reference(v_x,self.params)
         pgd_u = pgd_s_lin.evaluate(0, [1, 2, 3], [self.p, self.E, self.nu], 0)
@@ -471,7 +471,7 @@ class TestSolverProblem(unittest.TestCase):
         print(errors, mean_errorL2, max_errorL2)
         self.assertAlmostEqual(max_errorL2, errorL2, places=8)
         
-        # # specified point
+        # Specified point
         ref_fem.x_values=[self.x]
         print(ref_fem([self.p,self.E,self.nu]))
         error_class.fixed_var=[self.x]
