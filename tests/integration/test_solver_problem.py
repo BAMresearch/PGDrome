@@ -19,6 +19,7 @@ import os
 import numpy as np
 
 from pgdrome.solver import PGDProblem1
+from pgdrome.model import PGDErrorComputation
 
 dolfin.parameters["form_compiler"]["cpp_optimize"] = True
 dolfin.parameters["form_compiler"]["representation"] = 'uflacs'
@@ -349,42 +350,60 @@ def main_normal(vs, params, writeFlag=False, name='PGDsolution', problem='linear
 
     return pgd_prob, pgd_solution
 
-def FEM_reference(V_x,params, values):
+class FEM_reference():
     '''FEM reference model'''
+    def __init__(self,V_x,params,x_values=[]):
 
-    lam_p = values[0]
-    lam_E = values[1]
-    nu = values[2]
+        self.V_x = V_x
+        self.params = params
+        self.mesh = self.V_x.mesh()
 
-    E = lam_E*params['E_0']
-    def eps(v):
+        self.x_values = x_values
+
+        # set up problem
+        doms = create_dom([self.V_x], self.params)
+        self.bc_x = create_bc([self.V_x], doms, self.params)[0]
+        self.ds = dolfin.Measure('ds', domain=self.mesh, subdomain_data=doms[0])
+
+    def eps(self,v):
         """ Returns a vector of strains of size (3,1) in the Voigt notation
         layout {eps_xx, eps_yy, gamma_xy} where gamma_xy = 2*eps_xy"""
         return dolfin.as_vector([v[i].dx(i) for i in range(2)] +
                             [v[i].dx(j) + v[j].dx(i) for (i, j) in [(0, 1)]])
 
-    def sigma(v):
+    def sigma(self,v,E,nu):
         # plane strain in E and nu
         alpha = E / ((1. + nu) * (1 - 2.0 * nu))
         C_np = alpha * np.array([[1.0 - nu, nu, 0.0],
                                     [nu, 1.0 - nu, 0.0],
                                     [0.0, 0.0, (1.0 - 2.0 * nu) / 2.0]])
         C = dolfin.as_matrix(C_np)
-        return C*eps(v)
+        return C*self.eps(v)
 
-    doms = create_dom([V_x],params)
-    bc_x = create_bc([V_x],doms,params)[0]
-    ds = dolfin.Measure('ds', domain=V_x.mesh(), subdomain_data=doms[0])
+    def __call__(self,values):
+        # set values
+        lam_p = values[0]
+        lam_E = values[1]
+        nu = values[2]
+        E = lam_E * self.params['E_0']
 
-    v = dolfin.TestFunction(V_x)
-    u = dolfin.TrialFunction(V_x)
-    a = dolfin.inner(sigma(u), eps(v)) * dolfin.dx
-    l = lam_p* dolfin.dot(params['g1'], v) * ds(2) + lam_p*dolfin.dot(params['g2'], v) * ds(3)
-    u = dolfin.Function(V_x, name="Displacement")
-    dolfin.solve(a == l, u, bc_x)
+        # Solve problem
+        v = dolfin.TestFunction(self.V_x)
+        u = dolfin.TrialFunction(self.V_x)
+        a = dolfin.inner(self.sigma(u,E,nu), self.eps(v)) * dolfin.dx
+        l = lam_p* dolfin.dot(self.params['g1'], v) * self.ds(2) + lam_p*dolfin.dot(self.params['g2'], v) * self.ds(3)
+        u = dolfin.Function(self.V_x, name="Displacement")
+        dolfin.solve(a == l, u, self.bc_x)
 
-    return u
-
+        # if specific points are given
+        if self.x_values:
+            u_out = np.zeros((len(self.x_values),2))
+            for i in range(len(self.x_values)):
+                u_out[i,:]=np.array(u(self.x_values[i]))
+            return u_out
+        else:
+            # return full vector
+            return u
 
 
 class TestSolverProblem(unittest.TestCase):
@@ -410,7 +429,7 @@ class TestSolverProblem(unittest.TestCase):
     def TearDown(self):
         pass
 
-    def test_standard_solver(self):
+    def test_solver_options(self):
         # define meshes
         # mesh in x space
         _, v_x = create_meshX([200, 20], self.ords[0])
@@ -420,28 +439,61 @@ class TestSolverProblem(unittest.TestCase):
         # solve PGD problem with nonlinear solver
         pgd_prob_nl, pgd_s_nl = main_normal([v_x] + v_e, self.params, writeFlag=self.write, name='PGDsolution', problem='nonlinear', settings={"relative_tolerance":1e-8, "linear_solver": "mumps"})
 
-        # # check solver convergences / modes because after nonlinear solver == 0
+        # check solver convergences
         print('PGD amplitudes', pgd_prob_lin.amplitude, pgd_prob_nl.amplitude)
         amplitude_diff_max = (np.array(pgd_prob_lin.amplitude) - np.array(pgd_prob_nl.amplitude)).max()
-        print(amplitude_diff_max)
+        print('diff amplitudes',amplitude_diff_max)
         self.assertTrue(amplitude_diff_max < 1e-8)
 
-        # error to FEM at one point
-        pgd = pgd_s_lin.evaluate(0, [1, 2, 3], [self.p, self.E, self.nu], 0)
-        fem_ref = FEM_reference(v_x, self.params, [self.p,self.E,self.nu])
-        print('ref', fem_ref(self.x),'pgd',pgd(self.x))
-        error_point = np.linalg.norm(np.array(pgd(self.x)-fem_ref(self.x)))/np.linalg.norm(fem_ref(self.x))
-        # errornorm over all nodes
-        errorL2 = np.linalg.norm(pgd.compute_vertex_values()[:] - fem_ref.compute_vertex_values()[:], 2) / np.linalg.norm(fem_ref.compute_vertex_values()[:], 2)
-        #print(error_point, errorL2)
+        # Error checks
+        # error to FEM at one point in x and specified PGD parameters (for linear solver problem)
+        ref_fem = FEM_reference(v_x,self.params)
+        pgd_u = pgd_s_lin.evaluate(0, [1, 2, 3], [self.p, self.E, self.nu], 0)
+        ref_u = ref_fem([self.p,self.E,self.nu])
+        print('ref_u', ref_u(self.x),'pgd_u',pgd_u(self.x))
+        error_point = np.linalg.norm(np.array(pgd_u(self.x)-ref_u(self.x)))/np.linalg.norm(ref_u(self.x))
+        # errornorm over all nodes for given set of PGD variables
+        errorL2 = np.linalg.norm(pgd_u.compute_vertex_values()[:] - ref_u.compute_vertex_values()[:], 2) / np.linalg.norm(ref_u.compute_vertex_values()[:], 2)
+        print(error_point, errorL2)
 
         # check
-        self.assertTrue(error_point < 2*pgd_prob_lin.amplitude[-2])
-        self.assertTrue(errorL2 < 2 * pgd_prob_lin.amplitude[-2])
+        self.assertTrue(error_point < pgd_prob_lin.amplitude[-2]) # 1e-4
+        self.assertTrue(errorL2 < pgd_prob_lin.amplitude[-2])
+
+        # check PGDErrorComputation class with manually computation
+        # over space x at given PGD coordinates
+        error_class = PGDErrorComputation(fixed_dim=[0],
+                                          data_test=[[self.p, self.E, self.nu]],
+                                          FOM_model=ref_fem,
+                                          PGD_model=pgd_s_lin)
+        
+        errors, mean_errorL2, max_errorL2 = error_class.evaluate_error()  # Computing Error
+        print(errors, mean_errorL2, max_errorL2)
+        self.assertAlmostEqual(max_errorL2, errorL2, places=8)
+        
+        # Specified point
+        ref_fem.x_values=[self.x]
+        print(ref_fem([self.p,self.E,self.nu]))
+        error_class.fixed_var=[self.x]
+        errors, mean_errorL2, max_errorL2 = error_class.evaluate_error()  # Computing Error
+        print(errors, mean_errorL2, max_errorL2)
+        self.assertAlmostEqual(max_errorL2, error_point, places=8)
+
+        # suggested way to check solution:
+        # error to fem computation at random values for PGD variables over space x
+        ref_fem.x_values = [] # delete specified x values
+        error_random = PGDErrorComputation(fixed_dim=[0], n_samples=10, FOM_model=ref_fem, PGD_model=pgd_s_lin)
+        _, mean_errorL2, max_errorL2 = error_random.evaluate_error()  # Computing Error
+        print(mean_errorL2, max_errorL2)
+        self.assertTrue(mean_errorL2 < pgd_prob_lin.amplitude[-2])
+        self.assertTrue(max_errorL2 < pgd_prob_lin.amplitude[-2])
+
 
 
 if __name__ == '__main__':
     # import logging
     # logging.basicConfig(level=logging.DEBUG)
+
+    unittest.main()
 
     unittest.main()

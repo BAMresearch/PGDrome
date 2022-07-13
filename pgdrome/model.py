@@ -1292,10 +1292,10 @@ class PGDErrorComputation(object):
                  FOM_model =[], PGD_model=[], lim_samples =[],
                  fixed_var = [], *args, **kwargs):
         '''
-            # fixed_dim: Fixed variables
+            # fixed_dim: Fixed variables (int)
             # n_samples: Number os samples
             # data_test: Snapshots in which error must be computed (list: No. samples x No. variables)
-            # FOM_model: Full-Order model solution (class or ndarray, defined in the main script)
+            # FOM_model: Full-Order model solution (function or ndarray, defined in the main script)
             # PGD_model: Solution computed through PGD in the main script (Class, defined in the main script)
             # lim_samples: Maximum and minimum limits of the variables
             # fixed_var: Points of the fixed variable in which the error has to be computed
@@ -1375,6 +1375,14 @@ class PGDErrorComputation(object):
         # Sampling:
         if not self.data_test:
             self.data_test = self.sampling_LHS()
+        # else:
+            # self.fixed_var = [self.data_test[i][self.fixed_dim[0]] for i in range(len(self.data_test))]
+            # aux_datatest = self.data_test
+            # self.data_test = [[0] * len(self.free_dim)] * len(aux_datatest)
+            # for i in range(len(aux_datatest)):
+            #     for ii in self.free_dim:
+            #         self.data_test[i][ii-1] = aux_datatest[i][ii]
+            
             
         # Initialize
         errorL2 = np.zeros(len(self.data_test))
@@ -1386,6 +1394,8 @@ class PGDErrorComputation(object):
             #-----------------------------------
             if self.FOM_sol:
                 u_fem = self.FOM_sol(self.data_test[i])
+                if isinstance(u_fem,float):
+                    u_fem = np.array(u_fem)
             else:
                 self.logger.error('FEM not defined')
                 raise ValueError('FEM not defined')
