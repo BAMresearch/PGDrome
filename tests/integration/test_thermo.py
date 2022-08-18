@@ -157,7 +157,7 @@ def main(vs, name=None):
 
     prob = ['r', 's', 'w'] # problems according problem_assemble_fcts
     seq_fp = np.arange(len(vs))  # default sequence of Fixed Point iteration
-    PGD_nmax = 13      # max number of PGD modes
+    PGD_nmax = 15      # max number of PGD modes
 
     pgd_prob = PGDProblem1(name='1DHeatEqu-PGD-XTEta', name_coord=['X', 'T', 'Eta'],
                            modes_info=['T_x', 'Node', 'Scalar'],
@@ -167,15 +167,18 @@ def main(vs, name=None):
                            PGD_nmax=PGD_nmax)
 
     # possible solver paramters (if not given then default values will be used!)
-    pgd_prob.stop_fp = 'norm'
+    # pgd_prob.stop_fp = 'norm'
+    pgd_prob.stop_fp = 'chady'
     pgd_prob.max_fp_it = 50
     pgd_prob.tol_fp_it = 1e-5 #1e-3
+    pgd_prob.fp_init = 'randomized'
 
     pgd_prob.solve_PGD(_problem='linear')
     # pgd_prob.solve_PGD(_problem='linear',solve_modes=["FEM","FEM","direct"]) # solve normal
     # pgd_prob.solve_PGD(_problem = 'nonlinear', settings = {"relative_tolerance": 1e-8, "linear_solver": "mumps"})
     print(pgd_prob.simulation_info)
     print('PGD Amplitude', pgd_prob.amplitude)
+    input()
 
     pgd_s = pgd_prob.return_PGD()  # as PGD class instance
     
@@ -326,6 +329,9 @@ class PGDproblem(unittest.TestCase):
         self.assertTrue(mean_error2<0.05)
         
 if __name__ == '__main__':
-    # dolfin.set_log_level(dolfin.LogLevel.ERROR)
-    dolfin.set_log_level(dolfin.LogLevel.INFO)
+    dolfin.set_log_level(dolfin.LogLevel.ERROR)
+
+    import logging
+    logging.basicConfig(level=logging.INFO)
+
     unittest.main()

@@ -126,7 +126,12 @@ def main(vs, writeFlag=False, name=None):
                            param=param, rhs_fct=problem_assemble_rhs,
                            lhs_fct=problem_assemble_lhs, probs=prob, seq_fp=seq_fp,
                            PGD_nmax=PGD_nmax)
-    
+
+    # pgd_prob.stop_fp = 'chady'
+    # pgd_prob.max_fp_it = 50
+    # pgd_prob.tol_fp_it = 1e-5  # 1e-3
+    # pgd_prob.fp_init = 'randomized'
+
     pgd_prob.solve_PGD() # solve
 
     pgd_s = pgd_prob.return_PGD()  # as PGD class instance

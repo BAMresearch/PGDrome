@@ -89,6 +89,7 @@ class PGDProblem1:
         # ('norm': |prod(norm(Fs_i^fpi)) - prod(norm(Fs_i^fpi-1)| relative and absolute)
         # 'delta': max_i(max(|Fs_i^fpi-Fs_i^fpi-1|)) absolute
         self.stop_fp = 'delta'
+        self.fp_init = ''
 
         self.simulation_info = 'PGD solver option: PGD_nmax %s / PGD tolerance %s and max FP iterations %s and FP tolerance %s; \n' % (
         self.PGD_nmax, self.PGD_tol, self.max_fp_it, self.tol_fp_it)
@@ -138,13 +139,19 @@ class PGDProblem1:
             self.logger.debug('Functionspace of dim %s is from type %s', dim, check_string)
             if check_string.split(' ')[0] == '<vector':
 
-                if dimension_dim == 1:
+                if dimension_dim == 1: # scalar Function Space
                     if bc[dim] != 0:
                         Fs_init[dim] = dolfin.project(dolfin.Expression('1.0', degree=0),
                                                       V=V[dim], bcs=bc[dim], solver_type='mumps')
                     else:
                         Fs_init[dim] = dolfin.project(dolfin.Expression('1.0', degree=0), V=V[dim], solver_type='mumps')
+
+                    if self.fp_init.lower()=='randomized': # as in Chadys matlab code
+                        idx = np.where(Fs_init[dim].vector()[:]!=0)[0] # idx without boundary
+                        Fs_init[dim].vector()[idx] = np.random.rand(len(idx))
+                        Fs_init[dim].vector()[:] *= 1./dolfin.norm(Fs_init[dim]) # normalization with l2 norm
                     self.logger.debug('Fs_init[dim]: %s ', Fs_init[dim].compute_vertex_values()[:])
+
                 elif dimension_dim == 2:  # VectorFunctionSpace!!!
                     if bc[dim] != 0:
                         Fs_init[dim] = dolfin.project(dolfin.Expression(('1.0', '1.0'), element=V[dim].ufl_element()),
@@ -152,6 +159,9 @@ class PGDProblem1:
                     else:
                         Fs_init[dim] = dolfin.project(dolfin.Expression(('1.0', '1.0'), element=V[dim].ufl_element()),
                                                       V=V[dim], solver_type='mumps')
+                    if self.fp_init.lower()=='randomized':
+                        self.logger.error('randomized initialization not yet implemented for more than 1D')
+                        raise ValueError('NOT IMPLEMENTED YET')
                 elif dimension_dim == 3:  # VectorFunctionSpace!!!
                     if bc[dim] != 0:
                         Fs_init[dim] = dolfin.project(
@@ -161,6 +171,9 @@ class PGDProblem1:
                         Fs_init[dim] = dolfin.project(
                             dolfin.Expression(('1.0', '1.0', '1.0'), element=V[dim].ufl_element()),
                             V=V[dim], solver_type='mumps')
+                    if self.fp_init.lower()=='randomized':
+                        self.logger.error('randomized initialization not yet implemented for more than 1D')
+                        raise ValueError('NOT IMPLEMENTED YET')
                 else:
                     self.logger.error('ERROR DIMENSION NOT defined!!!!!!!!!!!')
                     raise ValueError('ERROR DIMENSION NOT defined!!!!!!!!!!!')
@@ -175,7 +188,13 @@ class PGDProblem1:
                                                   V=V[dim], bcs=bc[dim], solver_type='mumps')
                 else:
                     Fs_init[dim] = dolfin.project(dolfin.Expression('1.0', degree=0), V=V[dim], solver_type='mumps')
+
+                if self.fp_init.lower()=='randomized': # as in Chadys matlab code
+                    idx = np.where(Fs_init[dim].vector()[:] != 0)[0]  # idx without boundary
+                    Fs_init[dim].vector()[idx] = np.random.rand(len(idx))
+                    Fs_init[dim].vector()[:] *= 1. / dolfin.norm(Fs_init[dim])  # normalization with l2 norm
                 self.logger.debug('Fs_init[dim]: %s ', Fs_init[dim].compute_vertex_values()[:])
+
 
         return Fs_init
 
@@ -209,8 +228,6 @@ class PGDProblem1:
             # initialize Functions including boundary conditions!
             self.logger.info("enrichment step %s ", n_enr)
             Fs_init = self.get_Fsinit(self.V, self.bc)
-            # for d in range(self.num_pgd_var):
-            #     Fs_init[d].vector()[:]=np.random.rand(len(Fs_init[d].vector()[:])) #RANDbdg fehlt!!!
 
             norm_Fs = np.ones(self.num_pgd_var)
             for i in range(self.num_pgd_var):
@@ -488,6 +505,33 @@ class PGDProblem1:
                     self.logger.error( "ERROR:  something got wrong!!!")
                     break
 
+            elif self.stop_fp.lower() == 'chady':
+                # new set of solutions Fs old set of solutions Fs_init compute error after matlab code ghnatios (calc_diff_R(R,Rold))
+                newnew, newold, oldold = 1, 1, 1
+
+                for d in range(self.num_pgd_var):
+                    newnew *= dolfin.norm(Fs[d])**2 # same as dolfin.assemble(Fs[d]*Fs[d]* dolfin.dx(self.meshes[d]))
+                    newold *= dolfin.assemble(Fs[d]*Fs_init[d]* dolfin.dx(self.meshes[d]))
+                    oldold *= dolfin.norm(Fs_init[d])**2
+                max_error = np.sqrt(np.absolute(newnew+oldold-2*newold))
+                print('max_error', max_error)
+
+                if max_error < self.tol_fp_it :
+                    self.logger.info(
+                        f"fix point iteration converged !!! in number of steps: {fpi + 1} (error {max_error:8.6e})")
+                    self.simulation_info += f'enrichment step {n_enr} fixed point iteration converged in {fpi + 1} / error: {max_error:8.6e} \n'
+                    break
+                elif (fpi < self.max_fp_it - 1):
+                    self.logger.debug("fix point iteration not converged %s (max %s) (error %s)",
+                                      fpi, self.max_fp_it, max_error)
+                    Fs_init = np.copy(Fs)
+                    norm_Fs_init = np.copy(norm_Fs)
+                elif (fpi == self.max_fp_it - 1):
+                    self.logger.error(
+                        f"ERROR: fix point iteration in maximum number of iterations NOT converged (enrichment loop {n_enr}) (error {max_error:8.6e})")
+                    self.simulation_info += f'<<<enrichment step {n_enr} fixed point iteration NOT converged in {fpi + 1} / error: {max_error:8.6e} >>>\n'
+                    # input('press enter to continue')
+                    break
             else:
                 self.logger.error('stopping criterion not defined %s (self.stop_fp = "delta" or "norm")', self.stop_fp)
                 raise ValueError('stopping criterion not defined %s (self.stop_fp = "delta" or "norm")')

@@ -329,6 +329,7 @@ def main_normal(vs, params, writeFlag=False, name='PGDsolution', problem='linear
     # pgd_prob.stop_fp = 'norm' #'delta'
     # pgd_prob.tol_fp_it = 1e-8
     # pgd_prob.tol_abs = 1e-4
+
     pgd_prob.solve_PGD(_problem=problem,settings=settings)  # solve
 
 
