@@ -150,12 +150,14 @@ def main(vs, name=None):
 
     # define heat source in x, t and eta
     q1 = [dolfin.Expression('6*sqrt(3)*P / ((af+ar)*af*af*pow(pi,3/2)) * exp(-3*(pow(x[0]-xc,2)/pow(af,2)))', degree=4, P=2500, af=0.002, ar=0.002, xc=0.05)]
+    # q1 = [dolfin.Expression('x[0] < 0.05 - af + DOLFIN_EPS ? p1: (x[0] < 0.05 + af + DOLFIN_EPS ? p2: 0)', degree=4, af=0.002, p1=0, p2=10e5)]
+
     q2 = [dolfin.interpolate(dolfin.Expression('1.0', degree=4),vs[1])]
     q3 = [dolfin.interpolate(dolfin.Expression('x[0]', degree=4), vs[2])]
 
     prob = ['r', 's', 'w'] # problems according problem_assemble_fcts
     seq_fp = np.arange(len(vs))  # default sequence of Fixed Point iteration
-    PGD_nmax = 15       # max number of PGD modes
+    PGD_nmax = 13      # max number of PGD modes
 
     pgd_prob = PGDProblem1(name='1DHeatEqu-PGD-XTEta', name_coord=['X', 'T', 'Eta'],
                            modes_info=['T_x', 'Node', 'Scalar'],
@@ -167,9 +169,10 @@ def main(vs, name=None):
     # possible solver paramters (if not given then default values will be used!)
     pgd_prob.stop_fp = 'norm'
     pgd_prob.max_fp_it = 50
-    pgd_prob.tol_fp_it = 1e-3
+    pgd_prob.tol_fp_it = 1e-5 #1e-3
 
-    pgd_prob.solve_PGD(_problem='linear') # solve normal
+    pgd_prob.solve_PGD(_problem='linear')
+    # pgd_prob.solve_PGD(_problem='linear',solve_modes=["FEM","FEM","direct"]) # solve normal
     # pgd_prob.solve_PGD(_problem = 'nonlinear', settings = {"relative_tolerance": 1e-8, "linear_solver": "mumps"})
     print(pgd_prob.simulation_info)
     print('PGD Amplitude', pgd_prob.amplitude)
@@ -211,6 +214,8 @@ class Reference_solution():
         T_n = fenics.project(fenics.Expression("T_amb", domain=self.meshes[0], degree=4, T_amb=T_amb), self.Vs[0])
         # Define goldak heat input         
         q = fenics.Expression('6*sqrt(3)*Q / ((af+ar)*af*af*pow(pi,3/2)) * exp(-3*(pow(x[0]-xc,2)/pow(af,2)))', degree=4, Q=Q, af=af, ar=ar, xc=0.05)
+        # q = dolfin.Expression('x[0] < 0.05 - af + DOLFIN_EPS ? p1: (x[0] < 0.05 + af + DOLFIN_EPS ? p2: 0)', degree=4,
+        #                    af=0.002, p1=0, p2=10e5)
         # Define problem functions
         T = fenics.TrialFunction(self.Vs[0])
         v = fenics.TestFunction(self.Vs[0])
@@ -321,5 +326,6 @@ class PGDproblem(unittest.TestCase):
         self.assertTrue(mean_error2<0.05)
         
 if __name__ == '__main__':
-    dolfin.set_log_level(dolfin.LogLevel.ERROR)
+    # dolfin.set_log_level(dolfin.LogLevel.ERROR)
+    dolfin.set_log_level(dolfin.LogLevel.INFO)
     unittest.main()

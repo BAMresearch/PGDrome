@@ -209,6 +209,8 @@ class PGDProblem1:
             # initialize Functions including boundary conditions!
             self.logger.info("enrichment step %s ", n_enr)
             Fs_init = self.get_Fsinit(self.V, self.bc)
+            # for d in range(self.num_pgd_var):
+            #     Fs_init[d].vector()[:]=np.random.rand(len(Fs_init[d].vector()[:])) #RANDbdg fehlt!!!
 
             norm_Fs = np.ones(self.num_pgd_var)
             for i in range(self.num_pgd_var):
