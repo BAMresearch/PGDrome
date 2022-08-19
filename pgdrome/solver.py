@@ -160,8 +160,9 @@ class PGDProblem1:
                         Fs_init[dim] = dolfin.project(dolfin.Expression(('1.0', '1.0'), element=V[dim].ufl_element()),
                                                       V=V[dim], solver_type='mumps')
                     if self.fp_init.lower()=='randomized':
-                        self.logger.error('randomized initialization not yet implemented for more than 1D')
-                        raise ValueError('NOT IMPLEMENTED YET')
+                        idx = np.where(Fs_init[dim].vector()[:] != 0)[0]  # idx without boundary
+                        Fs_init[dim].vector()[idx] = np.random.rand(len(idx))
+                        Fs_init[dim].vector()[:] *= 1. / dolfin.norm(Fs_init[dim])  # normalization with l2 norm
                 elif dimension_dim == 3:  # VectorFunctionSpace!!!
                     if bc[dim] != 0:
                         Fs_init[dim] = dolfin.project(
@@ -172,8 +173,9 @@ class PGDProblem1:
                             dolfin.Expression(('1.0', '1.0', '1.0'), element=V[dim].ufl_element()),
                             V=V[dim], solver_type='mumps')
                     if self.fp_init.lower()=='randomized':
-                        self.logger.error('randomized initialization not yet implemented for more than 1D')
-                        raise ValueError('NOT IMPLEMENTED YET')
+                        idx = np.where(Fs_init[dim].vector()[:] != 0)[0]  # idx without boundary
+                        Fs_init[dim].vector()[idx] = np.random.rand(len(idx))
+                        Fs_init[dim].vector()[:] *= 1. / dolfin.norm(Fs_init[dim])  # normalization with l2 norm
                 else:
                     self.logger.error('ERROR DIMENSION NOT defined!!!!!!!!!!!')
                     raise ValueError('ERROR DIMENSION NOT defined!!!!!!!!!!!')
@@ -239,24 +241,48 @@ class PGDProblem1:
             Fs, norm_Fs = self.FP_solve(Fs_init, norm_Fs, delta, n_enr, _problem, solve_modes, settings)
 
             self.logger.debug('update PGD_func: old lenght: %s', len(self.PGD_func[0]))
-            # computed weighting factors
-            normU = 1.0
-            normPGD = 1.0
-            norm_all = np.prod(norm_Fs) ** (1. / self.num_pgd_var)  # in paper version
-            fac_Fs = np.zeros(self.num_pgd_var)
+            ##### new regarding chady matlab code
+            Fs_normalized = np.copy(Fs) # normalized via l2 norm
             for dim in range(self.num_pgd_var):
-                if norm_Fs[dim] < 1e-8:
-                    fac_Fs[dim] = 1.0
-                else:
-                    fac_Fs[dim] = norm_all / norm_Fs[dim]
-                normU = normU * norm_Fs[dim]  # classical L2 norm without weighting of pgd modes
+                print('norm check', norm_Fs[dim], dolfin.norm(Fs[dim]))
+                Fs_normalized[dim] = dolfin.Function(self.V[dim])
+                norm_inv = np.copy(1.0/norm_Fs[dim])
+                Fs_normalized[dim].vector().axpy(norm_inv, Fs[dim].vector())
+            # second normalization
+                #? assume l2 norm then norm_aux=1 TODO: stiffness matrix for norm!! HOW?
+            norm_aux = 1
+            norm_fac = np.sqrt(norm_aux)**(1./self.num_pgd_var)
+            normPGD = 1
+            for dim in range(self.num_pgd_var):
+                Fs_normalized[dim] = dolfin.Function(self.V[dim])
+                fac_inv = 1. / norm_fac
+                Fs_normalized[dim].vector().axpy(fac_inv, Fs[dim].vector())
+                self.PGD_func[dim].append(Fs_normalized[dim])
+                normPGD = normPGD * dolfin.norm(Fs_normalized[dim])
+                # add new terms
+            normU = np.prod(norm_Fs)
+            ##### new
 
-                # update PGD functions
-                tmp = dolfin.Function(self.V[dim])
-                tmp.vector().axpy(fac_Fs[dim], Fs[dim].vector())
-                # print("newPGD"+str(dim)+" ", tmp.compute_vertex_values())
-                self.PGD_func[dim].append(tmp)
-                normPGD = normPGD * dolfin.norm(tmp)  # classical L2 norm with weighting of pgd modes
+            # ### old version
+            # # computed weighting factors
+            # normU = 1.0
+            # normPGD = 1.0
+            # norm_all = np.prod(norm_Fs) ** (1. / self.num_pgd_var)  # in paper version
+            # fac_Fs = np.zeros(self.num_pgd_var)
+            # for dim in range(self.num_pgd_var):
+            #     if norm_Fs[dim] < 1e-8:
+            #         fac_Fs[dim] = 1.0
+            #     else:
+            #         fac_Fs[dim] = norm_all / norm_Fs[dim]
+            #     normU = normU * norm_Fs[dim]  # classical L2 norm without weighting of pgd modes
+            #
+            #     # update PGD functions
+            #     tmp = dolfin.Function(self.V[dim])
+            #     tmp.vector().axpy(fac_Fs[dim], Fs[dim].vector())
+            #     # print("newPGD"+str(dim)+" ", tmp.compute_vertex_values())
+            #     self.PGD_func[dim].append(tmp)
+            #     normPGD = normPGD * dolfin.norm(tmp)  # classical L2 norm with weighting of pgd modes
+            # ### old version
 
             self.logger.debug('update PGD_func: new lenght: %s', len(self.PGD_func[0]))
 
@@ -285,7 +311,7 @@ class PGDProblem1:
                 raise ValueError("Convergence not reached BUT Nmax reached!!")
 
         # save result in class instance
-        self.amplitude = relConv
+        self.amplitude = [relConv, relConv2]
         self.PGD_modes = len(self.PGD_func[0])
 
         return self
@@ -432,40 +458,22 @@ class PGDProblem1:
                 Fs[dim] = fct_F
                 norm_Fs[dim] = dolfin.norm(Fs[dim])  # classical L2 norm
 
-                ### NEW correction
-                delta_tmp = np.absolute(Fs[dim].vector()[:] - Fs_init[dim].vector()[:])
-                max_index = np.argmax(delta_tmp)
-                if np.absolute(Fs[dim].vector()[max_index]) < 1e-3:
-                    delta[dim] = delta_tmp.max()
-                else:
-                    delta[dim] = delta_tmp.max() / np.absolute(Fs[dim].vector()[max_index])
-
                 self.logger.debug("norm for %s : %s", self.prob[dim], norm_Fs[dim])
-                # print("F"+str(dim)+" "+self.prob[dim], Fs[dim].compute_vertex_values()[:])
-                # print('Fs_init[dim]',Fs_init[dim].compute_vertex_values()[:])
-                self.logger.debug("delta_%s: %s", dim, delta[dim])
 
-            # norm_Fs_init = np.ones(self.num_pgd_var)
-            # for i in range(len(norm_Fs_init)):
-            #     norm_Fs_init[i] = dolfin.norm(Fs_init[i])
-            self.logger.debug('norms Fs: %s, Fs_init %s, norm product Fs: %s, Fs_init: %s', norm_Fs, norm_Fs_init,
-                              np.prod(norm_Fs), np.prod(norm_Fs_init))
-            delta_norm = np.absolute(np.prod(norm_Fs) - np.prod(norm_Fs_init))
-            norm_init = np.absolute(np.prod(norm_Fs_init))
-            if np.prod(norm_Fs) > 1e-8:
-                delta_norm_rel = delta_norm / norm_init
-            else:
-                delta_norm_rel = delta_norm
-
-            # check convergence Fixed Point iteration
-            self.logger.debug("Fixed point iteration %s: max.deltas=max(%s)=%s", fpi, delta, delta.max())
-            self.logger.debug("Fixed point iteration %s: relative deltas in norms=%s (abs %s)", fpi, delta_norm_rel,
-                             delta_norm)
             self.logger.debug("convergence type for fixed point iteration: %s (changeable in self.stop_fp)",
                              self.stop_fp)
-            # input()
 
             if self.stop_fp.lower() == 'delta':
+                for dim in range(self.num_pgd_var):
+                    # delta between old solution
+                    delta_tmp = np.absolute(Fs[dim].vector()[:] - Fs_init[dim].vector()[:])
+                    max_index = np.argmax(delta_tmp)
+                    if np.absolute(Fs[dim].vector()[max_index]) < 1e-8:
+                        delta[dim] = delta_tmp.max()
+                    else:
+                        delta[dim] = delta_tmp.max() / np.absolute(Fs[dim].vector()[max_index])  # relative
+                self.logger.debug(f"absolute delta {delta_tmp}, relative delta {delta}")
+
                 if (len(np.where(delta > self.tol_fp_it)[0]) > 0 and fpi < self.max_fp_it - 1):
                     self.logger.debug("fix point iteration not converged %s (max %s)", fpi, self.max_fp_it)
                     Fs_init = np.copy(Fs)
@@ -482,7 +490,14 @@ class PGDProblem1:
                     self.simulation_info += f'enrichment step {n_enr} fixed point iteration converged in {fpi + 1} / delta: {delta} \n'
                     break
             elif self.stop_fp.lower() == 'norm':
-                # tol_abs = self.tol_fp_it
+                # difference between product of solution norms to old one
+                delta_norm = np.absolute(np.prod(norm_Fs) - np.prod(norm_Fs_init))
+                norm_init = np.absolute(np.prod(norm_Fs_init))
+                if np.prod(norm_Fs) > 1e-8:
+                    delta_norm_rel = delta_norm / norm_init
+                else:
+                    delta_norm_rel = delta_norm
+                self.logger.debug(f"absolute delta norm {delta_norm}, relative delta norm {delta_norm_rel}")
 
                 if (delta_norm_rel < self.tol_fp_it or delta_norm < self.tol_abs):
                     self.logger.info("fix point iteration converged !!! in number of steps: %s (delta norm rel %s, abs: %s, init: %s)",
@@ -511,7 +526,7 @@ class PGDProblem1:
 
                 for d in range(self.num_pgd_var):
                     newnew *= dolfin.norm(Fs[d])**2 # same as dolfin.assemble(Fs[d]*Fs[d]* dolfin.dx(self.meshes[d]))
-                    newold *= dolfin.assemble(Fs[d]*Fs_init[d]* dolfin.dx(self.meshes[d]))
+                    newold *= dolfin.assemble(dolfin.inner(Fs[d],Fs_init[d]) * dolfin.dx(self.meshes[d]))
                     oldold *= dolfin.norm(Fs_init[d])**2
                 max_error = np.sqrt(np.absolute(newnew+oldold-2*newold))
                 print('max_error', max_error)

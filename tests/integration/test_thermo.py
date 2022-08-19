@@ -168,10 +168,10 @@ def main(vs, name=None):
 
     # possible solver paramters (if not given then default values will be used!)
     # pgd_prob.stop_fp = 'norm'
-    pgd_prob.stop_fp = 'chady'
+    pgd_prob.stop_fp = 'norm'
     pgd_prob.max_fp_it = 50
     pgd_prob.tol_fp_it = 1e-5 #1e-3
-    pgd_prob.fp_init = 'randomized'
+    # pgd_prob.fp_init = 'randomized'
 
     pgd_prob.solve_PGD(_problem='linear')
     # pgd_prob.solve_PGD(_problem='linear',solve_modes=["FEM","FEM","direct"]) # solve normal

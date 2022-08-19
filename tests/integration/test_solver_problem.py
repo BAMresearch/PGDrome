@@ -325,15 +325,16 @@ def main_normal(vs, params, writeFlag=False, name='PGDsolution', problem='linear
                            probs=prob, seq_fp=seq_fp, PGD_nmax=PGD_nmax)
 
     # solve displacement problem
-    # pgd_prob.max_fp_it = 15
-    # pgd_prob.stop_fp = 'norm' #'delta'
-    # pgd_prob.tol_fp_it = 1e-8
+    pgd_prob.max_fp_it = 20
+    pgd_prob.stop_fp = 'chady' #'chady' 'norm' #'delta'
+    pgd_prob.tol_fp_it = 1e-5
     # pgd_prob.tol_abs = 1e-4
+    pgd_prob.fp_init = 'randomized' # -> not yet for more than 1D
 
     pgd_prob.solve_PGD(_problem=problem,settings=settings)  # solve
 
 
-    # print('computed:', pgd_prob.name, pgd_prob.amplitude)
+    print('computed:', pgd_prob.name, pgd_prob.amplitude)
     print(pgd_prob.simulation_info)
 
     pgd_solution = pgd_prob.return_PGD()
@@ -492,8 +493,10 @@ class TestSolverProblem(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # import logging
-    # logging.basicConfig(level=logging.DEBUG)
+    import logging
+
+    dolfin.set_log_level(dolfin.LogLevel.ERROR)
+    logging.basicConfig(level=logging.INFO)
 
     unittest.main()
 
