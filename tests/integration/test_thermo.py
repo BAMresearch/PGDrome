@@ -166,9 +166,9 @@ def main(vs, name=None):
                            lhs_fct=problem_assemble_lhs, probs=prob, seq_fp=seq_fp,
                            PGD_nmax=PGD_nmax)
 
-    # possible solver paramters (if not given then default values will be used!)
+    # possible solver parameters (if not given then default values will be used!)
     # pgd_prob.stop_fp = 'norm'
-    pgd_prob.stop_fp = 'norm'
+    pgd_prob.stop_fp = 'chady'
     pgd_prob.max_fp_it = 50
     pgd_prob.tol_fp_it = 1e-5 #1e-3
     # pgd_prob.fp_init = 'randomized'
@@ -322,6 +322,16 @@ class PGDproblem(unittest.TestCase):
                                           )
 
         error2, mean_error2, max_error2 = error_uPGD2.evaluate_error()  
+        
+        # Plot solution over space at specific time
+        import matplotlib.pyplot as plt
+        u_pgd = pgd_test.evaluate(0, [1, 2], [data_test[0][0], data_test[0][1]], 0) 
+        plt.figure()
+        plt.plot(pgd_test.mesh[0].dataX, u_pgd.compute_vertex_values()[:], label=f"PGD at {data_test[0][0]}s")
+        plt.title(f"PGD solution at {data_test[0][0]}s over space")
+        plt.xlabel("Space x [m]")
+        plt.ylabel("Temperature T [°C]")
+        plt.draw()
         
         print('Mean error',mean_error2)
         print('Max. error',max_error2)
