@@ -76,20 +76,10 @@ def problem_assemble_lhs(fct_F,var_F,Fs,meshes,dom,param,typ,dim):
 def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
     # problem discription right hand side of DGL for each fixed point problem
 
-    IC_r = param["IC_r"]
-    IC_s = param["IC_s"]
-    IC_Eta = param["IC_Eta"]
-
     if typ == 'r':
         l = dolfin.Constant(dolfin.assemble(Q[1][0] * Fs[1] * dolfin.dx(meshes[1])) \
             * dolfin.assemble(Q[2][0] * Fs[2] * dolfin.dx(meshes[2]))) \
-            * Q[0][0] * var_F * dolfin.dx(meshes[0]) \
-            - dolfin.Constant(dolfin.assemble(IC_s.dx(0) * Fs[1] * dolfin.dx(meshes[1])) \
-            * dolfin.assemble(IC_Eta * Fs[2] * dolfin.dx(meshes[2]))) \
-            * param["rho"] * param["c_p"] * IC_r * var_F * dolfin.dx(meshes[0]) \
-            - dolfin.Constant(dolfin.assemble(IC_s * Fs[1] * dolfin.dx(meshes[1])) \
-            * dolfin.assemble(IC_Eta * Fs[2] * dolfin.dx(meshes[2]))) \
-            * param["k"] * IC_r.dx(0) * var_F.dx(0) * dolfin.dx(meshes[0])
+            * Q[0][0] * var_F * dolfin.dx(meshes[0]) 
         if nE > 0:
             for old in range(nE):
                 l +=- dolfin.Constant(dolfin.assemble(PGD_func[1][old].dx(0) * Fs[1] * dolfin.dx(meshes[1])) \
@@ -101,13 +91,7 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
     if typ == 's':
         l = dolfin.Constant(dolfin.assemble(Q[0][0] * Fs[0] * dolfin.dx(meshes[0])) \
             * dolfin.assemble(Q[2][0] * Fs[2] * dolfin.dx(meshes[2]))) \
-            * Q[1][0] * var_F * dolfin.dx(meshes[1]) \
-            - dolfin.Constant(dolfin.assemble(IC_r * Fs[0] * dolfin.dx(meshes[0])) \
-            * dolfin.assemble(IC_Eta * Fs[2] * dolfin.dx(meshes[2]))) \
-            * param["rho"] * param["c_p"] * IC_s.dx(0) * var_F * dolfin.dx(meshes[1]) \
-            - dolfin.Constant(dolfin.assemble(IC_r.dx(0) * Fs[0].dx(0) * dolfin.dx(meshes[0])) \
-            * dolfin.assemble(IC_Eta * Fs[2] * dolfin.dx(meshes[2]))) \
-            * param["k"] * IC_s * var_F * dolfin.dx(meshes[1])
+            * Q[1][0] * var_F * dolfin.dx(meshes[1]) 
         if nE > 0:
             for old in range(nE):
                 l +=- dolfin.Constant(dolfin.assemble(PGD_func[0][old] * Fs[0] * dolfin.dx(meshes[0])) \
@@ -119,13 +103,7 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
     if typ == 'w':
         l = dolfin.Constant(dolfin.assemble(Q[0][0] * Fs[0] * dolfin.dx(meshes[0])) \
             * dolfin.assemble(Q[1][0] * Fs[1] * dolfin.dx(meshes[1]))) \
-            * Q[2][0] * var_F * dolfin.dx(meshes[2]) \
-            - dolfin.Constant(dolfin.assemble(IC_r * Fs[0] * dolfin.dx(meshes[0])) \
-            * dolfin.assemble(IC_s.dx(0) * Fs[1] * dolfin.dx(meshes[1]))) \
-            * param["rho"] * param["c_p"] * IC_Eta * var_F * dolfin.dx(meshes[2]) \
-            - dolfin.Constant(dolfin.assemble(IC_r.dx(0) * Fs[0].dx(0) * dolfin.dx(meshes[0])) \
-            * dolfin.assemble(IC_s * Fs[1] * dolfin.dx(meshes[1]))) \
-            * param["k"] * IC_Eta * var_F * dolfin.dx(meshes[2])
+            * Q[2][0] * var_F * dolfin.dx(meshes[2]) 
         if nE > 0:
             for old in range(nE):
                 l +=- dolfin.Constant(dolfin.assemble(PGD_func[0][old] * Fs[0] * dolfin.dx(meshes[0])) \
@@ -142,17 +120,10 @@ def main(vs, name=None):
     # define some parameters
     param = {"rho": 7100, "c_p": 3100, "k": 100}
 
-    # define nonhomogeneous dirichlet IC in time s
-    param.update({'IC_r': dolfin.interpolate(dolfin.Expression('1.0', degree=4),vs[0])})
-    param.update({'IC_s': dolfin.interpolate(dolfin.Expression('(x[0] < 0.0 + 1E-8) ? 25 : 0', degree=4),vs[1])})
-    param.update({'IC_Eta': dolfin.interpolate(dolfin.Expression('1.0', degree=4),vs[2])})
-
     # define heat source in x, t and eta
-    q1 = [dolfin.Expression('6*sqrt(3)*P / ((af+ar)*af*af*pow(pi,3/2)) * exp(-3*(pow(x[0]-xc,2)/pow(af,2)))', degree=4, P=2500, af=0.002, ar=0.002, xc=0.05)]
-    # q1 = [dolfin.Expression('x[0] < 0.05 - af + DOLFIN_EPS ? p1: (x[0] < 0.05 + af + DOLFIN_EPS ? p2: 0)', degree=4, af=0.002, p1=0, p2=10e5)]
-
-    q2 = [dolfin.interpolate(dolfin.Expression('1.0', degree=4),vs[1])]
-    q3 = [dolfin.interpolate(dolfin.Expression('x[0]', degree=4), vs[2])]
+    q1 = [dolfin.Expression('x[0] < 0.05 - af + DOLFIN_EPS ? p1 : (x[0] > 0.05 + af - DOLFIN_EPS ? p1 : p2)', degree=4, af=0.002, p1=0, p2=10e5)]
+    q2 = [dolfin.Constant(1.0)]
+    q3 = [dolfin.Constant(1.0)]
 
     prob = ['r', 's', 'w'] # problems according problem_assemble_fcts
     seq_fp = np.arange(len(vs))  # default sequence of Fixed Point iteration
@@ -166,8 +137,8 @@ def main(vs, name=None):
                            PGD_nmax=PGD_nmax)
 
     # possible solver parameters (if not given then default values will be used!)
-    # pgd_prob.stop_fp = 'norm'
-    pgd_prob.stop_fp = 'chady'
+    # pgd_prob.stop_fp = 'chady'
+    pgd_prob.stop_fp = 'norm'
     pgd_prob.max_fp_it = 50
     pgd_prob.tol_fp_it = 1e-5 #1e-3
     # pgd_prob.fp_init = 'randomized'
@@ -204,20 +175,13 @@ class Reference_solution():
         rho = 7100                                  # material density [kg/m³]
         k = 100                                     # heat conductivity [W/m°C]
         cp = 3100                                   # specific heat capacity [J/kg°C]
-        T_amb = 25
+        T_amb = 0
         time_points = np.linspace(0, t_max, num=len(self.meshes[1].coordinates()))
         dt = time_points[1]-time_points[0]
-        # Heatsource parameters
-        P = 2500                                    # thermal power [W] = [N*m/s] = [J/s]
-        Q = P * eta
-        af = 0.002                                  # Goldak distribution parameter [m]
-        ar = 0.002                                  # Goldak distribution parameter [m]
         # Define initial value
         T_n = fenics.project(fenics.Expression("T_amb", domain=self.meshes[0], degree=4, T_amb=T_amb), self.Vs[0])
         # Define goldak heat input         
-        q = fenics.Expression('6*sqrt(3)*Q / ((af+ar)*af*af*pow(pi,3/2)) * exp(-3*(pow(x[0]-xc,2)/pow(af,2)))', degree=4, Q=Q, af=af, ar=ar, xc=0.05)
-        # q = dolfin.Expression('x[0] < 0.05 - af + DOLFIN_EPS ? p1: (x[0] < 0.05 + af + DOLFIN_EPS ? p2: 0)', degree=4,
-        #                    af=0.002, p1=0, p2=10e5)
+        q = fenics.Expression('x[0] < 0.05 - af + DOLFIN_EPS ? p1 : (x[0] > 0.05 + af - DOLFIN_EPS ? p1 : p2)', degree=4, af=0.002, p1=0, p2=10e5)
         # Define problem functions
         T = fenics.TrialFunction(self.Vs[0])
         v = fenics.TestFunction(self.Vs[0])
@@ -281,7 +245,7 @@ class PGDproblem(unittest.TestCase):
         
         # MESH
         #======================================================================
-        meshes, Vs = create_meshes([400, 100, 10], self.ords, self.ranges)
+        meshes, Vs = create_meshes([1000, 500, 50], self.ords, self.ranges)
         
         # Computing solution and error
         #======================================================================
@@ -300,7 +264,7 @@ class PGDproblem(unittest.TestCase):
         print('Mean error',mean_errorL2)
         print('Max. error',max_errorL2)
         
-        self.assertTrue(mean_errorL2<0.03)
+        self.assertTrue(mean_errorL2<0.004)
         
         # Computing solution and error
         #======================================================================
@@ -335,7 +299,7 @@ class PGDproblem(unittest.TestCase):
         print('Mean error',mean_error2)
         print('Max. error',max_error2)
         
-        self.assertTrue(mean_error2<0.05)
+        self.assertTrue(mean_error2<0.0055)
         
 if __name__ == '__main__':
     dolfin.set_log_level(dolfin.LogLevel.ERROR)
