@@ -241,48 +241,79 @@ class PGDProblem1:
             Fs, norm_Fs = self.FP_solve(Fs_init, norm_Fs, delta, n_enr, _problem, solve_modes, settings)
 
             self.logger.debug('update PGD_func: old lenght: %s', len(self.PGD_func[0]))
-            ##### new regarding chady matlab code
-            Fs_normalized = np.copy(Fs) # normalized via l2 norm
-            for dim in range(self.num_pgd_var):
-                print('norm check', norm_Fs[dim], dolfin.norm(Fs[dim]))
-                Fs_normalized[dim] = dolfin.Function(self.V[dim])
-                norm_inv = np.copy(1.0/norm_Fs[dim])
-                Fs_normalized[dim].vector().axpy(norm_inv, Fs[dim].vector())
-            # second normalization
-                #? assume l2 norm then norm_aux=1 TODO: stiffness matrix for norm!! HOW?
-            norm_aux = 1
-            norm_fac = np.sqrt(norm_aux)**(1./self.num_pgd_var)
-            normPGD = 1
-            for dim in range(self.num_pgd_var):
-                Fs_normalized[dim] = dolfin.Function(self.V[dim])
-                fac_inv = 1. / norm_fac
-                Fs_normalized[dim].vector().axpy(fac_inv, Fs[dim].vector())
-                self.PGD_func[dim].append(Fs_normalized[dim])
-                normPGD = normPGD * dolfin.norm(Fs_normalized[dim])
-                # add new terms
-            normU = np.prod(norm_Fs)
-            ##### new
 
-            # ### old version
-            # # computed weighting factors
-            # normU = 1.0
-            # normPGD = 1.0
-            # norm_all = np.prod(norm_Fs) ** (1. / self.num_pgd_var)  # in paper version
-            # fac_Fs = np.zeros(self.num_pgd_var)
-            # for dim in range(self.num_pgd_var):
-            #     if norm_Fs[dim] < 1e-8:
-            #         fac_Fs[dim] = 1.0
-            #     else:
-            #         fac_Fs[dim] = norm_all / norm_Fs[dim]
-            #     normU = normU * norm_Fs[dim]  # classical L2 norm without weighting of pgd modes
-            #
-            #     # update PGD functions
-            #     tmp = dolfin.Function(self.V[dim])
-            #     tmp.vector().axpy(fac_Fs[dim], Fs[dim].vector())
-            #     # print("newPGD"+str(dim)+" ", tmp.compute_vertex_values())
-            #     self.PGD_func[dim].append(tmp)
-            #     normPGD = normPGD * dolfin.norm(tmp)  # classical L2 norm with weighting of pgd modes
-            # ### old version
+            # normalization and adding new modes
+            test_case = 'no'
+            if test_case.lower()=='no':
+                # no normalization at all
+                normPGD = 1
+                for dim in range(self.num_pgd_var):
+                    self.PGD_func[dim].append(Fs[dim])
+                    normPGD = normPGD * dolfin.norm(Fs[dim])
+                normU = np.prod(norm_Fs)
+
+            elif test_case.lower()=='n2':
+                # normalized modes separately l2 norm
+                normPGD = 1
+                Fs_normalized = np.copy(Fs)  # normalized via l2 norm
+                for dim in range(self.num_pgd_var):
+                    Fs_normalized[dim] = dolfin.Function(self.V[dim])
+                    norm_inv = np.copy(1.0 / norm_Fs[dim])
+                    Fs_normalized[dim].vector().axpy(norm_inv, Fs[dim].vector())
+                    self.PGD_func[dim].append(Fs_normalized[dim])
+                normU = np.prod(norm_Fs)
+
+            elif test_case.lower()=='n3':
+                ##### new regarding chady matlab code
+                Fs_normalized = np.copy(Fs) # normalized via l2 norm
+                for dim in range(self.num_pgd_var):
+                    Fs_normalized[dim] = dolfin.Function(self.V[dim])
+                    norm_inv = np.copy(1.0/norm_Fs[dim])
+                    Fs_normalized[dim].vector().axpy(norm_inv, Fs[dim].vector())
+
+                # second normalization (assemble left hand side for last problem with new modes)
+                fct_F = Fs_normalized[-1]
+                var_F = Fs_normalized[-1]
+                # define DGL
+                a = self.lhs_fct(fct_F, var_F, Fs_normalized, self.meshes, self.dom, self.param, self.prob[-1], self.num_pgd_var)
+                norm_aux = dolfin.assemble(a)
+                norm_fac = np.sqrt(np.absolute(norm_aux))**(1./self.num_pgd_var)
+
+                normPGD = 1
+                for dim in range(self.num_pgd_var):
+                    Fs_normalized[dim] = dolfin.Function(self.V[dim])
+                    fac_inv = 1. / norm_fac
+                    Fs_normalized[dim].vector().axpy(fac_inv, Fs[dim].vector())
+                    self.PGD_func[dim].append(Fs_normalized[dim])
+                    normPGD = normPGD * dolfin.norm(Fs_normalized[dim])
+                    # add new terms
+                normU = np.prod(norm_Fs)
+                ##### new
+
+            # # check right hand side?
+            # l = self.rhs_fct(fct_F, var_F, self.PGD_func[:][-1], self.meshes, self.dom, self.param, self.load, self.PGD_func,
+            #                  self.prob[-1], n_enr, self.num_pgd_var)
+            elif test_case.lower()=='old':
+                ### old version
+                # computed weighting factors
+                normU = 1.0
+                normPGD = 1.0
+                norm_all = np.prod(norm_Fs) ** (1. / self.num_pgd_var)  # in paper version
+                fac_Fs = np.zeros(self.num_pgd_var)
+                for dim in range(self.num_pgd_var):
+                    if norm_Fs[dim] < 1e-8:
+                        fac_Fs[dim] = 1.0
+                    else:
+                        fac_Fs[dim] = norm_all / norm_Fs[dim]
+                    normU = normU * norm_Fs[dim]  # classical L2 norm without weighting of pgd modes
+
+                    # update PGD functions
+                    tmp = dolfin.Function(self.V[dim])
+                    tmp.vector().axpy(fac_Fs[dim], Fs[dim].vector()) # tmp.vector().axpy(1./fac_Fs[dim], Fs[dim].vector()) ??
+                    # print("newPGD"+str(dim)+" ", tmp.compute_vertex_values())
+                    self.PGD_func[dim].append(tmp)
+                    normPGD = normPGD * dolfin.norm(tmp)  # classical L2 norm with weighting of pgd modes
+                ### old version
 
             self.logger.debug('update PGD_func: new lenght: %s', len(self.PGD_func[0]))
 
