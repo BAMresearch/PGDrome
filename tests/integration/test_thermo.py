@@ -274,7 +274,8 @@ class PGDproblem(unittest.TestCase):
         self.fixed_dim = [0] # Fixed variable
         self.n_samples = 10 # Number of samples
 
-        self.param = {"rho": 7100, "c_p": 3100, "k": 100, 'P':2500}
+        # self.param = {"rho": 7100, "c_p": 3100, "k": 100, 'P':100}
+        self.param = {"rho": 1, "c_p": 1, "k": 100/(7100*3100), 'P': 100/(7100*3100)}
         
     def TearDown(self):
         pass
@@ -282,26 +283,27 @@ class PGDproblem(unittest.TestCase):
     def test_solver(self):
         
         # MESH
-        #======================================================================
-        meshes, Vs = create_meshes([400, 100, 10], self.ords, self.ranges)
+        #====================================
+        # ==================================
+        meshes, Vs = create_meshes([400, 10, 10], self.ords, self.ranges)
         
         # Computing solution and error
         #======================================================================
         pgd_test, param = main(Vs,self.param) # Computing PGD
 
-        fun_FOM = Reference_solution(Vs=Vs, param=param, meshes=meshes) # Computing Full-Order model: FEM
+        fun_FOM = Reference_solution(Vs=Vs, param=self.param, meshes=meshes) # Computing Full-Order model: FEM
         
         error_uPGD = PGDErrorComputation(fixed_dim = self.fixed_dim,
                                           n_samples = self.n_samples,
                                           FOM_model = fun_FOM,
                                           PGD_model = pgd_test
                                           )
-        
+
         errorL2, mean_errorL2, max_errorL2 = error_uPGD.evaluate_error() # Computing Error
-        
+
         print('Mean error',mean_errorL2)
         print('Max. error',max_errorL2)
-        
+
         # self.assertTrue(mean_errorL2<0.03)
         
         # Computing solution and error
@@ -311,7 +313,7 @@ class PGDproblem(unittest.TestCase):
         x_test = [[0.05]]  # x (fixed variable)
         data_test = [[1., 0.8],[10.,0.8]] # t, eta
         
-        # Solve Full-oorder model: FEM
+        # # Solve Full-oorder model: FEM
         fun_FOM2 = Reference_solution(Vs=Vs, param=param, meshes=meshes, x_fixed=x_test) # Computing Full-Order model: FEM
 
         # Compute error:
@@ -322,7 +324,7 @@ class PGDproblem(unittest.TestCase):
                                           fixed_var = x_test
                                           )
 
-        error2, mean_error2, max_error2 = error_uPGD2.evaluate_error()  
+        error2, mean_error2, max_error2 = error_uPGD2.evaluate_error()
         
         # Plot solution over space at specific time
         import matplotlib.pyplot as plt
@@ -332,9 +334,9 @@ class PGDproblem(unittest.TestCase):
         u_fem2 = fun_FOM(data_test[-1])
         u_pgd2 = pgd_test.evaluate(0, [1, 2], [data_test[-1][0], data_test[-1][1]], 0)
         plt.plot(pgd_test.mesh[0].dataX, u_pgd1.compute_vertex_values()[:], '-*b', label=f"PGD at {data_test[0]}s")
-        plt.plot(pgd_test.mesh[0].dataX, u_fem1.compute_vertex_values()[:], '-or', label='FEM')
+        plt.plot(meshes[0].coordinates()[:], u_fem1.compute_vertex_values()[:], '-or', label='FEM')
         plt.plot(pgd_test.mesh[0].dataX, u_pgd2.compute_vertex_values()[:], '-*g', label=f"PGD at {data_test[-1]}s")
-        plt.plot(pgd_test.mesh[0].dataX, u_fem2.compute_vertex_values()[:], '-oy', label='FEM')
+        plt.plot(meshes[0].coordinates()[:], u_fem2.compute_vertex_values()[:], '-oy', label='FEM')
         plt.title(f"PGD solution at {data_test[0][0]}s over space")
         plt.xlabel("Space x [m]")
         plt.ylabel("Temperature T [°C]")

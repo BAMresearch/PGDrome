@@ -96,7 +96,8 @@ class PGDProblem1:
 
         self.solve_mode =	{ # dictionary to decide which solver is used
             "FEM": "FEM",
-            "direct": "direct"
+            "direct": "direct",
+            "FD": "FD"
         }
 
     @property
@@ -431,6 +432,9 @@ class PGDProblem1:
                             solver.solve()
                     elif solve_modes[dim] == self.solve_mode["direct"]:
                         fct_F = self.direct_solve(a, l, dim)
+                    elif solve_modes[dim] == self.solve_mode["FD"]:
+                        print('w/o BC FD solver mode a = matrix, l= vector')
+                        fct_F = self.FD_solve(a, l, dim)
                     else:
                         self.logger.error("ERROR: solver %s doesn't exist", solve_modes[dim])
                 else:
@@ -475,6 +479,9 @@ class PGDProblem1:
                             solver.solve()
                     elif solve_modes[dim] == self.solve_mode["direct"]:
                         fct_F = self.direct_solve(a, l, dim)
+                    elif solve_modes[dim] == self.solve_mode["FD"]:
+                        print('w bC FD solver mode a = matrix, l= vector')
+                        fct_F = self.FD_solve(a, l, dim)
                     else:
                         self.logger.error("ERROR: solver %s doesn't exist", solve_modes[dim])
 
@@ -615,6 +622,25 @@ class PGDProblem1:
 
         # Solve the equation
         vec = b/a
+
+        # Set the DOFs to the solution
+        fct_F.vector()[:] = vec
+        return fct_F
+
+    def FD_solve(self, A, B, dim):
+        '''
+            compute the FD solution of the problem Ax=B
+        :param a: left hand side matrix
+        :param l: right hand side vector
+        :param dim: index of the corresponding function space
+        :return: fct_F: new PGD function
+        '''
+        # Define the new function
+        fct_F = dolfin.Function(self.V[dim])
+
+        # Solve the equation
+        vec = np.linalg.solve(A,B)
+        print('vec',vec)
 
         # Set the DOFs to the solution
         fct_F.vector()[:] = vec
