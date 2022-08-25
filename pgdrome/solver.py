@@ -258,9 +258,11 @@ class PGDProblem1:
                 normPGD = 1
                 Fs_normalized = np.copy(Fs)  # normalized via l2 norm
                 for dim in range(self.num_pgd_var):
-                    Fs_normalized[dim] = dolfin.Function(self.V[dim])
-                    norm_inv = np.copy(1.0 / norm_Fs[dim])
-                    Fs_normalized[dim].vector().axpy(norm_inv, Fs[dim].vector())
+                    tmp = dolfin.Function(self.V[dim])
+                    # norm_inv = np.copy(1.0 / norm_Fs[dim])
+                    norm_inv = 1/(norm_Fs[dim]/ (np.prod(norm_Fs) ** (1. / self.num_pgd_var)))
+                    tmp.vector().axpy(norm_inv, Fs_normalized[dim].vector())
+                    Fs_normalized[dim]=tmp
                     self.PGD_func[dim].append(Fs_normalized[dim])
                 normU = np.prod(norm_Fs)
 
@@ -268,9 +270,10 @@ class PGDProblem1:
                 ##### new regarding chady matlab code
                 Fs_normalized = np.copy(Fs) # normalized via l2 norm
                 for dim in range(self.num_pgd_var):
-                    Fs_normalized[dim] = dolfin.Function(self.V[dim])
+                    tmp = dolfin.Function(self.V[dim])
                     norm_inv = np.copy(1.0/norm_Fs[dim])
-                    Fs_normalized[dim].vector().axpy(norm_inv, Fs[dim].vector())
+                    tmp.vector().axpy(norm_inv, Fs_normalized[dim].vector())
+                    Fs_normalized[dim] = tmp
 
                 # second normalization (assemble left hand side for last problem with new modes)
                 fct_F = Fs_normalized[-1]
@@ -282,11 +285,11 @@ class PGDProblem1:
 
                 normPGD = 1
                 for dim in range(self.num_pgd_var):
-                    Fs_normalized[dim] = dolfin.Function(self.V[dim])
+                    tmp = dolfin.Function(self.V[dim])
                     fac_inv = 1. / norm_fac
-                    Fs_normalized[dim].vector().axpy(fac_inv, Fs[dim].vector())
-                    self.PGD_func[dim].append(Fs_normalized[dim])
-                    normPGD = normPGD * dolfin.norm(Fs_normalized[dim])
+                    tmp.vector().axpy(fac_inv, Fs_normalized[dim].vector())
+                    self.PGD_func[dim].append(tmp)
+                    normPGD = normPGD * dolfin.norm(tmp)
                     # add new terms
                 normU = np.prod(norm_Fs)
                 ##### new
@@ -433,7 +436,6 @@ class PGDProblem1:
                     elif solve_modes[dim] == self.solve_mode["direct"]:
                         fct_F = self.direct_solve(a, l, dim)
                     elif solve_modes[dim] == self.solve_mode["FD"]:
-                        print('w/o BC FD solver mode a = matrix, l= vector')
                         fct_F = self.FD_solve(a, l, dim)
                     else:
                         self.logger.error("ERROR: solver %s doesn't exist", solve_modes[dim])
@@ -480,7 +482,6 @@ class PGDProblem1:
                     elif solve_modes[dim] == self.solve_mode["direct"]:
                         fct_F = self.direct_solve(a, l, dim)
                     elif solve_modes[dim] == self.solve_mode["FD"]:
-                        print('w bC FD solver mode a = matrix, l= vector')
                         fct_F = self.FD_solve(a, l, dim)
                     else:
                         self.logger.error("ERROR: solver %s doesn't exist", solve_modes[dim])
@@ -630,8 +631,8 @@ class PGDProblem1:
     def FD_solve(self, A, B, dim):
         '''
             compute the FD solution of the problem Ax=B
-        :param a: left hand side matrix
-        :param l: right hand side vector
+        :param A: matrix left hand side matrix including boundary conditions!
+        :param B: vector right hand side vector including boundary condition!
         :param dim: index of the corresponding function space
         :return: fct_F: new PGD function
         '''
@@ -640,7 +641,6 @@ class PGDProblem1:
 
         # Solve the equation
         vec = np.linalg.solve(A,B)
-        print('vec',vec)
 
         # Set the DOFs to the solution
         fct_F.vector()[:] = vec

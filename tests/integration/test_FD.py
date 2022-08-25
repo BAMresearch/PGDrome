@@ -142,40 +142,29 @@ class FEM_solution():
         self.q = q # heat source expression
 
     def run(self):
-        x = fenics.IntervalMesh(1,0,2)
-        V = fenics.FunctionSpace(x, "CG", 1)
-        
+
+        #boundary condition
+        def init(x, on_boundary):
+            return x < 0.0 + 1E-5
+
+        bc = dolfin.DirichletBC(self.Vs, self.param["T_amb"], init)
+
         # set up functions
-        T = fenics.TrialFunction(V)
-        v = fenics.TestFunction(V)
-        T_n = fenics.Function(V)
-        T_n.vector()[:] = np.ones(len(T_n.vector()[:]))*self.param['T_amb']
-        
-        q = dolfin.Expression('t<5 ? 0 : (t>20 ? 0 : Q)', degree=1, Q=self.param['P'], t=0)
+        T = fenics.TrialFunction(self.Vs)
+        v = fenics.TestFunction(self.Vs)
 
         # set up problem
-        time_points = np.sort(self.Vs.tabulate_dof_coordinates()[:].flatten())
-        dt = time_points[1]-time_points[0]
-        # Collect variational form
-        F =  self.param['rho']*self.param['c_p']*T*v*fenics.dx \
-            - (dt*q + self.param['rho']*self.param['c_p']*T_n)*v*fenics.dx
-        a, L = fenics.lhs(F), fenics.rhs(F)
-        
-        # solve problem
-        T = fenics.Function(V)
-        T_t = fenics.Function(self.Vs)
-        for n in range(len(time_points)):
-            t = time_points[n]
-            q.t=t
-             
-            fenics.solve(a == L, T)    
-            
-            # Update previous solution
-            T_n.assign(T)
-            
-            T_t.vector()[n] = T_n.vector()[0] 
+        a = self.param["rho"]*self.param["c_p"]*T.dx(0)*v*dolfin.dx
+        l = self.q*v*dolfin.dx
 
-        return T_t
+        # solve problem
+        T = fenics.Function(self.Vs)
+        fenics.solve(a == l, T, bcs=bc)
+
+        # # add inital condition
+        # T.vector()[-1] = self.param["T_amb"]
+
+        return T
     
     
 class PGDproblem(unittest.TestCase):
@@ -196,6 +185,7 @@ class PGDproblem(unittest.TestCase):
         mesh_t = dolfin.IntervalMesh(self.elem, self.ranges[0], self.ranges[1])
         Vs_t = dolfin.FunctionSpace(mesh_t, 'CG', self.ord)
         q = dolfin.Expression('x[0] < 5 ? 0 : (x[0] > 20 ? 0 : Q)', degree=1, Q=self.param['P'])
+
         # reference backward euler
         Tref = ref_solution(Vs=Vs_t, meshes=mesh_t, param=self.param, q=q).run()
         print(Tref.compute_vertex_values()[:])
@@ -204,13 +194,13 @@ class PGDproblem(unittest.TestCase):
         print(TFD.compute_vertex_values()[:])
         
         TFEM = FEM_solution(Vs=Vs_t, meshes=mesh_t, param=self.param, q=q).run()
-        print(np.flip(TFEM.compute_vertex_values()[:]))
+        print(TFEM.compute_vertex_values()[:])
 
         import matplotlib.pyplot as plt
         plt.figure()
         plt.plot(mesh_t.coordinates()[:],Tref.compute_vertex_values()[:],'-*r', label='ref')
         plt.plot(mesh_t.coordinates()[:], TFD.compute_vertex_values()[:], '-*b', label='FD')
-        plt.plot(mesh_t.coordinates()[:], np.flip(TFEM.compute_vertex_values()[:]), '-*g', label='FEM')
+        plt.plot(mesh_t.coordinates()[:], TFEM.compute_vertex_values()[:], '-*g', label='FEM')
         plt.legend()
         plt.show()
 

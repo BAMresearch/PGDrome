@@ -206,6 +206,11 @@ def problem_assemble_lhs_FDtime(fct_F,var_F,Fs,meshes,dom,param,typ,dim):
             * dolfin.assemble(Fs[2] * Fs[2] * dolfin.dx(meshes[2])) \
             * param["b"] * param['M1']
         # print('in lhs!', a, a.shape)
+        # add initial condition
+        a[:,param['bc_idx']]=0
+        a[param['bc_idx'],:] = 0
+        a[param['bc_idx'], param['bc_idx']] = 1
+
     if typ == 'w':
         alpha_t1 = Fs[1].vector()[:].transpose() @ param['D1_up'] @ Fs[1].vector()[:]
         alpha_t2 = Fs[1].vector()[:].transpose() @ param['M1'] @ Fs[1].vector()[:]
@@ -262,10 +267,13 @@ def problem_assemble_rhs_FDtime(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,n
                 l +=- dolfin.assemble(PGD_func[0][old] * Fs[0] * dolfin.dx(meshes[0])) \
                     * dolfin.assemble(PGD_func[2][old] * Fs[2] * dolfin.dx(meshes[2])) \
                     * param["a"] * param['D1_up'] @ PGD_func[1][old].vector()[:] \
-                    - dolfin.Constant(dolfin.assemble(PGD_func[0][old].dx(0) * Fs[0].dx(0) * dolfin.dx(meshes[0])) \
-                    * dolfin.assemble(PGD_func[2][old] * Fs[2] * dolfin.dx(meshes[2]))) \
+                    - dolfin.assemble(PGD_func[0][old].dx(0) * Fs[0].dx(0) * dolfin.dx(meshes[0])) \
+                    * dolfin.assemble(PGD_func[2][old] * Fs[2] * dolfin.dx(meshes[2])) \
                     * param["b"] * param['M1'] @ PGD_func[1][old].vector()[:]
         # print('in rhs!', l, l.shape)
+        # add initial condition
+        l[param['bc_idx']]=0
+
     if typ == 'w':
         betha_t1 = Fs[1].vector()[:].transpose() @ param['M1'] @ Q[1][0].vector()[:]
         betha_t2 = Fs[1].vector()[:].transpose() @ param['D1_up'] @ IC_s.vector()[:]
@@ -474,8 +482,8 @@ class PGDproblem(unittest.TestCase):
         # global parameters
         self.ord = 1  # 1 # 2 # order for each mesh
         self.ords = [self.ord, self.ord, self.ord]
-        self.factors_o = {'x_0': 1, 't_0': 1., 'T_0':1}
-        # self.factors_o = {'x_0': 0.1, 't_0': 10, 'T_0': 1000}
+        # self.factors_o = {'x_0': 1, 't_0': 1., 'T_0':1}
+        self.factors_o = {'x_0': 0.1, 't_0': 10, 'T_0': 1000}
         self.ranges = [[0., 0.1/self.factors_o['x_0']],  # xmin, xmax
                   [0., 10./self.factors_o['t_0']],  # tmin, tmax
                   [0.7, 0.9]]  # etamin, etamax
@@ -485,7 +493,8 @@ class PGDproblem(unittest.TestCase):
         self.n_samples = 10 # Number of samples
 
         # self.param = {"rho": 7100, "c_p": 3100, "k": 100, 'P':2500, 'T_amb':25} # material density [kg/m³]  # heat conductivity [W/m°C] # specific heat capacity [J/kg°C]
-        self.param = {'a':1/self.factors_o['t_0'], 'b':100/(7100*3100*self.factors_o['x_0']**2), 'c':100/(7100*3100*self.factors_o['T_0']), 'T_amb':25/self.factors_o['T_0']} # a=1/t0, b=k/(rho cp L**2), c=P/(rho cp T0)
+        self.param = {'a':1/self.factors_o['t_0'], 'b':100/(7100*3100*self.factors_o['x_0']**2), 'c':100/(7100*3100*self.factors_o['T_0']),
+                      'T_amb': 25/self.factors_o['T_0']} # a=1/t0, b=k/(rho cp L**2), c=P/(rho cp T0)
         print(self.param)
 
     def TearDown(self):
@@ -495,29 +504,33 @@ class PGDproblem(unittest.TestCase):
         
         # MESH
         #======================================================================
-        meshes, Vs = create_meshes([400, 5, 10], self.ords, self.ranges)
+        meshes, Vs = create_meshes([4000, 500, 10], self.ords, self.ranges)
 
         # create FD matrices for time mesh
         # sort dof coordinates and create FD matrices
         x_dofs = np.array(Vs[1].tabulate_dof_coordinates()[:].flatten())
         idx_sort = np.argsort(x_dofs)
         Mt, _, D1_upt = FD_matrices(Vs[1].tabulate_dof_coordinates()[idx_sort])
+        # idx for initial condition of time problem
+        bc_idx = np.where(x_dofs == 0)
+
         # store re_sorted according dofs!
         self.param['M1']=Mt[idx_sort,:][:,idx_sort]
         self.param['D1_up']=D1_upt[idx_sort, :][:, idx_sort]
+        self.param['bc_idx']=bc_idx[0]
 
         # Computing solution and error
         #======================================================================
-        # pgd_test, param = main(Vs,self.param,self.factors_o) # Computing PGD
+        # pgd_test_old, param = main(Vs,self.param,self.factors_o) # Computing PGD
 
-        pgd_test, param = main_FD(Vs, self.param, self.factors_o)  # Computing PGD
+        pgd_test_new, param = main_FD(Vs, self.param, self.factors_o)  # Computing PGD
 
         fun_FOM = Reference_solution(Vs=Vs, param=self.param, meshes=meshes, factors=self.factors_o) # Computing Full-Order model: FEM
-        
+
         error_uPGD = PGDErrorComputation(fixed_dim = self.fixed_dim,
                                           n_samples = self.n_samples,
                                           FOM_model = fun_FOM,
-                                          PGD_model = pgd_test
+                                          PGD_model = pgd_test_new
                                           )
 
         errorL2, mean_errorL2, max_errorL2 = error_uPGD.evaluate_error() # Computing Error
@@ -535,30 +548,38 @@ class PGDproblem(unittest.TestCase):
         data_test = [[1./self.factors_o['t_0'], 0.8],[10./self.factors_o['t_0'],0.8]] # t, eta
         print('test data', x_test, data_test)
         #
-        # Solve Full-oorder model: FEM
-        fun_FOM2 = Reference_solution(Vs=Vs, param=param, meshes=meshes, x_fixed=x_test, factors=self.factors_o) # Computing Full-Order model: FEM
-
-        # Compute error:
-        error_uPGD2 = PGDErrorComputation(fixed_dim = self.fixed_dim,
-                                          FOM_model = fun_FOM2,
-                                          PGD_model = pgd_test,
-                                          data_test = data_test,
-                                          fixed_var = x_test
-                                          )
-
-        error2, mean_error2, max_error2 = error_uPGD2.evaluate_error()
+        # # Solve Full-oorder model: FEM
+        # fun_FOM2 = Reference_solution(Vs=Vs, param=param, meshes=meshes, x_fixed=x_test, factors=self.factors_o) # Computing Full-Order model: FEM
+        #
+        # # Compute error:
+        # error_uPGD2 = PGDErrorComputation(fixed_dim = self.fixed_dim,
+        #                                   FOM_model = fun_FOM2,
+        #                                   PGD_model = pgd_test,
+        #                                   data_test = data_test,
+        #                                   fixed_var = x_test
+        #                                   )
+        #
+        # error2, mean_error2, max_error2 = error_uPGD2.evaluate_error()
         
         # Plot solution over space at specific time
         import matplotlib.pyplot as plt
         plt.figure()
         u_fem1 = fun_FOM(data_test[0])
-        u_pgd1 = pgd_test.evaluate(0, [1, 2], [data_test[0][0], data_test[0][1]], 0)
+        # u_pgd1_o = pgd_test_old.evaluate(0, [1, 2], [data_test[0][0], data_test[0][1]], 0)
+        u_pgd1_n = pgd_test_new.evaluate(0, [1, 2], [data_test[0][0], data_test[0][1]], 0)
         u_fem2 = fun_FOM(data_test[-1])
-        u_pgd2 = pgd_test.evaluate(0, [1, 2], [data_test[-1][0], data_test[-1][1]], 0)
-        plt.plot(pgd_test.mesh[0].dataX*self.factors_o['x_0'], u_pgd1.compute_vertex_values()[:]*self.factors_o['T_0'], '-*b', label=f"PGD at {data_test[0]}s")
+        # u_pgd2_o = pgd_test_old.evaluate(0, [1, 2], [data_test[-1][0], data_test[-1][1]], 0)
+        u_pgd2_n = pgd_test_new.evaluate(0, [1, 2], [data_test[-1][0], data_test[-1][1]], 0)
+        # plt.plot(meshes[0].coordinates()[:]*self.factors_o['x_0'], u_pgd1_o.compute_vertex_values()[:]*self.factors_o['T_0'], '-*b', label=f"PGD FEM at {data_test[0]}s")
+        plt.plot(meshes[0].coordinates()[:] * self.factors_o['x_0'],
+                 u_pgd1_n.compute_vertex_values()[:] * self.factors_o['T_0'], '-*g',
+                 label=f"PGD FD at {data_test[0]}s")
         plt.plot(meshes[0].coordinates()[:]*self.factors_o['x_0'], u_fem1.compute_vertex_values()[:]*self.factors_o['T_0'], '-or', label='FEM')
-        plt.plot(pgd_test.mesh[0].dataX*self.factors_o['x_0'], u_pgd2.compute_vertex_values()[:]*self.factors_o['T_0'], '-*g', label=f"PGD at {data_test[-1]}s")
-        plt.plot(meshes[0].coordinates()[:]*self.factors_o['x_0'], u_fem2.compute_vertex_values()[:]*self.factors_o['T_0'], '-oy', label='FEM')
+        # plt.plot(meshes[0].coordinates()[:]*self.factors_o['x_0'], u_pgd2_o.compute_vertex_values()[:]*self.factors_o['T_0'], '-*b', label=f"PGD FEM at {data_test[-1]}s")
+        plt.plot(meshes[0].coordinates()[:] * self.factors_o['x_0'],
+                 u_pgd2_n.compute_vertex_values()[:] * self.factors_o['T_0'], '-*g',
+                 label=f"PGD FD at {data_test[-1]}s")
+        plt.plot(meshes[0].coordinates()[:]*self.factors_o['x_0'], u_fem2.compute_vertex_values()[:]*self.factors_o['T_0'], '-or', label='FEM')
         plt.title(f"PGD solution at {data_test[0][0]}s over space")
         plt.xlabel("Space x [m]")
         plt.ylabel("Temperature T [°C]")
