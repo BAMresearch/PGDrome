@@ -98,8 +98,18 @@ class FD_solution():
         x_dofs = np.array(self.Vs.tabulate_dof_coordinates()[:].flatten())
         idx_sort = np.argsort(x_dofs)
         Mt, _, D1_upt = FD_matrices(self.Vs.tabulate_dof_coordinates()[idx_sort])
+                
+        # set up initial condition (with knowledge that it is only 1 point and A=const*D1) (Z.33-41 in SPTF_FV_v3)
+        Bord = 0
+        Mt[Bord,Bord] = 0
+        D1_upt[Bord,:] = 0
+        D1_upt[:,Bord] = 0
+        D1_upt[Bord,Bord] = 1 # here is normaly something like np.eye(np.max(Bord.size))
+                
         # store re_sorted according dofs!
         M1 = Mt[idx_sort, :][:, idx_sort]
+        
+        # resort D1
         D1_up = D1_upt[idx_sort, :][:, idx_sort]
 
         Q = dolfin.interpolate(self.q,self.Vs).vector()[:]
@@ -109,7 +119,8 @@ class FD_solution():
 
         vec_tmp = np.linalg.solve(Amat,Fvec)
 
-        T.vector()[:] = vec_tmp
+        # add value of inital condition
+        T.vector()[:] = vec_tmp + self.param['T_amb']
 
         return T
 
