@@ -368,7 +368,7 @@ def main_FD(vs, params, factor, name=None):
     # define heat source in x, t and eta
     q1 = [
         fenics.Expression('6*sqrt(3)*Q / ((af+ar)*af*af*pow(pi,3/2)) * exp(-3*(pow(x[0]*ff-xc,2)/pow(af,2)))', degree=4,
-                          Q=param['c'], af=0.002, ar=0.002,
+                          Q=param['c'], af=self.param["af"], ar=self.param["af"],
                           xc=0.05, ff=factors['x_0'])]
     # q1 = [dolfin.Expression('x[0] < 0.05 - af + DOLFIN_EPS ? p1: (x[0] < 0.05 + af + DOLFIN_EPS ? p2: 0)', degree=4, af=0.002, p1=0, p2=10e5)]
 
@@ -432,7 +432,7 @@ class Reference_solution():
         # Define initial value
         T_n = fenics.project(fenics.Expression("T_amb", domain=self.meshes[0], degree=4, T_amb=T_amb), self.Vs[0])
         # Define goldak heat input         
-        q = fenics.Expression('6*sqrt(3)*Q / ((af+ar)*af*af*pow(pi,3/2)) * exp(-3*(pow(x[0]*ff-xc,2)/pow(af,2)))', degree=4, Q=Q, af=0.002, ar=0.002,
+        q = fenics.Expression('6*sqrt(3)*Q / ((af+ar)*af*af*pow(pi,3/2)) * exp(-3*(pow(x[0]*ff-xc,2)/pow(af,2)))', degree=4, Q=Q, af=self.param["af"], ar=self.param["af"],
                               xc=0.05, ff=self.factor_o['x_0']) # new x coordinate!!!
         # Define problem functions
         T = fenics.TrialFunction(self.Vs[0])
@@ -494,7 +494,9 @@ class PGDproblem(unittest.TestCase):
 
         # self.param = {"rho": 7100, "c_p": 3100, "k": 100, 'P':2500, 'T_amb':25} # material density [kg/m³]  # heat conductivity [W/m°C] # specific heat capacity [J/kg°C]
         self.param = {'a':1/self.factors_o['t_0'], 'b':100/(7100*3100*self.factors_o['x_0']**2), 'c':100/(7100*3100*self.factors_o['T_0']),
-                      'T_amb': 25/self.factors_o['T_0']} # a=1/t0, b=k/(rho cp L**2), c=P/(rho cp T0)
+                      'T_amb': 25/self.factors_o['T_0'], "af":0.02
+                      } # a=1/t0, b=k/(rho cp L**2), c=P/(rho cp T0)
+                        # af eigentlich 0.002!
         print(self.param)
 
     def TearDown(self):
@@ -504,7 +506,7 @@ class PGDproblem(unittest.TestCase):
         
         # MESH
         #======================================================================
-        meshes, Vs = create_meshes([4000, 500, 10], self.ords, self.ranges)
+        meshes, Vs = create_meshes([400, 500, 10], self.ords, self.ranges)
 
         # create FD matrices for time mesh
         # sort dof coordinates and create FD matrices
