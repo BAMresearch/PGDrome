@@ -7,6 +7,7 @@
 
 import unittest
 import dolfin
+import fenics
 import numpy as np
 
 from scipy.sparse import spdiags
@@ -98,33 +99,85 @@ class FD_solution():
         x_dofs = np.array(self.Vs.tabulate_dof_coordinates()[:].flatten())
         idx_sort = np.argsort(x_dofs)
         Mt, _, D1_upt = FD_matrices(self.Vs.tabulate_dof_coordinates()[idx_sort])
-                
-        # set up initial condition (with knowledge that it is only 1 point and A=const*D1) (Z.33-41 in SPTF_FV_v3)
-        Bord = 0
-        Mt[Bord,Bord] = 0
-        D1_upt[Bord,:] = 0
-        D1_upt[:,Bord] = 0
-        D1_upt[Bord,Bord] = 1 # here is normaly something like np.eye(np.max(Bord.size))
-                
+                                
         # store re_sorted according dofs!
         M1 = Mt[idx_sort, :][:, idx_sort]
         
         # resort D1
         D1_up = D1_upt[idx_sort, :][:, idx_sort]
 
+        # interpolate right hand side
         Q = dolfin.interpolate(self.q,self.Vs).vector()[:]
 
+        # set up initial condition
+        IC = np.zeros(len(Q))
+        IC[-1] = self.param['T_amb']
+        
+        # set up shorted heat equation
         Amat = self.param['rho']*self.param['c_p']*D1_up
-        Fvec = M1 @ Q
+        Fvec = M1 @ Q - self.param['rho']*self.param['c_p'] * D1_up @ IC
+        
+        # set matrices for initial condition
+        Fvec[-1] = 0
+        Amat[:,-1] = 0
+        Amat[-1,:] = 0
+        Amat[-1,-1] = 1
 
+        # solve problem
         vec_tmp = np.linalg.solve(Amat,Fvec)
 
-        # add value of inital condition
-        T.vector()[:] = vec_tmp + self.param['T_amb']
+        # add inital condition
+        T.vector()[:] = vec_tmp + IC
 
         return T
 
 
+class FEM_solution():
+
+    def __init__(self, Vs=None, param=None, meshes=None, q=None):
+
+        self.Vs = Vs  # Location
+        self.param = param  # Parameters
+        self.meshes = meshes  # Meshes
+        self.q = q # heat source expression
+
+    def run(self):
+        x = fenics.IntervalMesh(1,0,2)
+        V = fenics.FunctionSpace(x, "CG", 1)
+        
+        # set up functions
+        T = fenics.TrialFunction(V)
+        v = fenics.TestFunction(V)
+        T_n = fenics.Function(V)
+        T_n.vector()[:] = np.ones(len(T_n.vector()[:]))*self.param['T_amb']
+        
+        q = dolfin.Expression('t<5 ? 0 : (t>20 ? 0 : Q)', degree=1, Q=self.param['P'], t=0)
+
+        # set up problem
+        time_points = np.sort(self.Vs.tabulate_dof_coordinates()[:].flatten())
+        dt = time_points[1]-time_points[0]
+        # Collect variational form
+        F =  self.param['rho']*self.param['c_p']*T*v*fenics.dx \
+            - (dt*q + self.param['rho']*self.param['c_p']*T_n)*v*fenics.dx
+        a, L = fenics.lhs(F), fenics.rhs(F)
+        
+        # solve problem
+        T = fenics.Function(V)
+        T_t = fenics.Function(self.Vs)
+        for n in range(len(time_points)):
+            t = time_points[n]
+            q.t=t
+             
+            fenics.solve(a == L, T)    
+            
+            # Update previous solution
+            T_n.assign(T)
+            
+            T_t.vector()[n] = T_n.vector()[0] 
+
+        return T_t
+    
+    
 class PGDproblem(unittest.TestCase):
 
     def setUp(self):
@@ -149,15 +202,20 @@ class PGDproblem(unittest.TestCase):
 
         TFD = FD_solution(Vs=Vs_t, meshes=mesh_t, param=self.param, q=q).run()
         print(TFD.compute_vertex_values()[:])
+        
+        TFEM = FEM_solution(Vs=Vs_t, meshes=mesh_t, param=self.param, q=q).run()
+        print(np.flip(TFEM.compute_vertex_values()[:]))
 
         import matplotlib.pyplot as plt
         plt.figure()
-        plt.plot(mesh_t.coordinates()[:],Tref.compute_vertex_values()[:],'-*r')
-        plt.plot(mesh_t.coordinates()[:], TFD.compute_vertex_values()[:], '-*b')
+        plt.plot(mesh_t.coordinates()[:],Tref.compute_vertex_values()[:],'-*r', label='ref')
+        plt.plot(mesh_t.coordinates()[:], TFD.compute_vertex_values()[:], '-*b', label='FD')
+        plt.plot(mesh_t.coordinates()[:], np.flip(TFEM.compute_vertex_values()[:]), '-*g', label='FEM')
+        plt.legend()
         plt.show()
 
 
-# MESH
+
 
 if __name__ == '__main__':
     dolfin.set_log_level(dolfin.LogLevel.ERROR)
