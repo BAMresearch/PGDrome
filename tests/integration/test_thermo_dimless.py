@@ -1,6 +1,6 @@
 '''
     simple 1D PGD example (heat equation with a point heat source) with three PGD variables (space, time and heat input)
-    solving PGD problem in standard way using FEM
+    solving PGD problem in standard way using FEM or FD
     returning PGDModel (as forward model) or PGD instance
 '''
 
@@ -368,7 +368,7 @@ def main_FD(vs, params, factor, name=None):
     # define heat source in x, t and eta
     q1 = [
         fenics.Expression('6*sqrt(3)*Q / ((af+ar)*af*af*pow(pi,3/2)) * exp(-3*(pow(x[0]*ff-xc,2)/pow(af,2)))', degree=4,
-                          Q=param['c'], af=self.param["af"], ar=self.param["af"],
+                          Q=param['c'], af=param["af"], ar=param["af"],
                           xc=0.05, ff=factors['x_0'])]
     # q1 = [dolfin.Expression('x[0] < 0.05 - af + DOLFIN_EPS ? p1: (x[0] < 0.05 + af + DOLFIN_EPS ? p2: 0)', degree=4, af=0.002, p1=0, p2=10e5)]
 
@@ -589,8 +589,8 @@ class PGDproblem(unittest.TestCase):
         plt.draw()
         plt.show()
         
-        print('Mean error',mean_error2)
-        print('Max. error',max_error2)
+        # print('Mean error',mean_error2)
+        # print('Max. error',max_error2)
         
         # self.assertTrue(mean_error2<0.05)
         
