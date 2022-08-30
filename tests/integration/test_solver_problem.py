@@ -1,4 +1,4 @@
-r'''
+'''
     2D linear elastictity PGD example
         div(sigma) = 0 with sigma = C_E * eps
         geometry: 1000 x 100
