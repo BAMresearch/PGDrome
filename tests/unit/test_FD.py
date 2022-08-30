@@ -2,7 +2,7 @@
     check FD formulation working within fenics
 
     problem rho cp \partial{T}{dt} = q(t)
-    solve for T
+    solve for T with backward euler as loop with FD matrix and with FEM
 '''
 
 import unittest
@@ -10,51 +10,7 @@ import dolfin
 import fenics
 import numpy as np
 
-from scipy.sparse import spdiags
-
-def FD_matrices(x):
-    N = len(x)
-    e = np.ones(N)
-
-    M = spdiags(e, 0, N, N).toarray()
-    D2 = spdiags([e, e, e], [-1, 0, 1], N, N).toarray()
-    D1_up = spdiags([e, e], [-1, 0], N, N).toarray()
-
-    i = 0
-    hp = x[i + 1] - x[i]
-
-    M[i, i] = hp / 2
-
-    D2[i, i] = -1 / hp
-    D2[i, i + 1] = 1 / hp
-
-    D1_up[i, i] = -1 / 2
-    D1_up[i, i + 1] = 1 / 2
-
-    for i in range(1, N - 1, 1):
-        hp = x[i + 1] - x[i]
-        hm = x[i] - x[i - 1]
-
-        M[i, i] = (hp + hm) / 2
-
-        D2[i, i] = -(hp + hm) / (hp * hm)
-        D2[i, i + 1] = 1 / hp
-        D2[i, i - 1] = 1 / hm
-
-        D1_up[i, i] = (hp + hm) / (2 * hm)
-        D1_up[i, i - 1] = -(hp + hm) / (2 * hm)
-
-    i = N - 1
-    hm = x[i] - x[i - 1]
-
-    M[i, i] = hm / 2
-
-    D2[i, i] = -1 / hm
-    D2[i, i - 1] = 1 / hm
-
-    D1_up[i, i] = (hp + hm) / (2 * hm)
-    D1_up[i, i - 1] = -(hp + hm) / (2 * hm)
-    return M, D2, D1_up
+from pgdrome.solver import FD_matrices
 
 class ref_solution():
 
@@ -137,6 +93,7 @@ class FEM_solution():
     def __init__(self, Vs=None, param=None, meshes=None, q=None):
 
         self.Vs = Vs  # Location
+        # self.Vs = dolfin.FunctionSpace(Vs.mesh(), 'CG', 3) # to improve solution
         self.param = param  # Parameters
         self.meshes = meshes  # Meshes
         self.q = q # heat source expression
@@ -171,12 +128,15 @@ class PGDproblem(unittest.TestCase):
 
     def setUp(self):
         # global parameters
-        self.ord = 1
+        self.ord = 1 # has to be one! because of defined mapping from FD matrix Euler!
 
         self.ranges = [0., 50] # time intervall
         self.elem = 200
 
         self.param = {"rho": 71, "c_p": 31, "k": 100, 'P':250, 'T_amb':25} # material density [kg/m³]  # heat conductivity [W/m°C] # specific heat capacity [J/kg°C]
+
+        # self.plotting = True
+        self.plotting = False
 
     def TearDown(self):
         pass
@@ -188,21 +148,30 @@ class PGDproblem(unittest.TestCase):
 
         # reference backward euler
         Tref = ref_solution(Vs=Vs_t, meshes=mesh_t, param=self.param, q=q).run()
-        print(Tref.compute_vertex_values()[:])
+        # print(Tref.compute_vertex_values()[:])
 
         TFD = FD_solution(Vs=Vs_t, meshes=mesh_t, param=self.param, q=q).run()
-        print(TFD.compute_vertex_values()[:])
+        # print(TFD.compute_vertex_values()[:])
         
         TFEM = FEM_solution(Vs=Vs_t, meshes=mesh_t, param=self.param, q=q).run()
-        print(TFEM.compute_vertex_values()[:])
+        # print(TFEM.compute_vertex_values()[:])
 
-        import matplotlib.pyplot as plt
-        plt.figure()
-        plt.plot(mesh_t.coordinates()[:],Tref.compute_vertex_values()[:],'-*r', label='ref')
-        plt.plot(mesh_t.coordinates()[:], TFD.compute_vertex_values()[:], '-*b', label='FD')
-        plt.plot(mesh_t.coordinates()[:], TFEM.compute_vertex_values()[:], '-*g', label='FEM')
-        plt.legend()
-        plt.show()
+        # check errors
+        # FD == reference
+        error1 = dolfin.errornorm(TFD,Tref)
+        error2 = dolfin.errornorm(TFEM, Tref)
+        print('error FD - ref',error1, 'error FEM - ref', error2)
+        self.assertTrue(error1<1e-8)
+        self.assertTrue(error2>error1) # FEM discretization not useful here!
+
+        if self.plotting:
+            import matplotlib.pyplot as plt
+            plt.figure()
+            plt.plot(mesh_t.coordinates()[:],Tref.compute_vertex_values()[:],'-*r', label='ref')
+            plt.plot(mesh_t.coordinates()[:], TFD.compute_vertex_values()[:], '-*b', label='FD')
+            plt.plot(mesh_t.coordinates()[:], TFEM.compute_vertex_values()[:], '-*g', label='FEM')
+            plt.legend()
+            plt.show()
 
 
 
