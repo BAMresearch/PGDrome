@@ -1361,7 +1361,7 @@ class PGDErrorComputation(object):
             error = np.linalg.norm(residual,2)/np.linalg.norm(u_FOM.reshape(-1),2)
             
         elif isinstance(u_FOM,np.ndarray) and not isinstance(u_PGD,np.ndarray):
-            
+
             residual = u_PGD.compute_vertex_values()[:]-u_FOM.reshape(-1)
             error = np.linalg.norm(residual,2)/np.linalg.norm(u_FOM.reshape(-1),2)
             

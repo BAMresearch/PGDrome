@@ -4,6 +4,8 @@ import numpy as np
 
 import dolfin
 
+from scipy.sparse import spdiags
+
 from pgdrome.model import PGD
 
 
@@ -645,3 +647,48 @@ class PGDProblem1:
         # Set the DOFs to the solution
         fct_F.vector()[:] = vec
         return fct_F
+
+# helper function for FD variant
+def FD_matrices(x):
+    N = len(x)
+    e = np.ones(N)
+
+    M = spdiags(e, 0, N, N).toarray()
+    D2 = spdiags([e, e, e], [-1, 0, 1], N, N).toarray()
+    D1_up = spdiags([e, e], [-1, 0], N, N).toarray()
+
+    i = 0
+    hp = x[i + 1] - x[i]
+
+    M[i, i] = hp / 2
+
+    D2[i, i] = -1 / hp
+    D2[i, i + 1] = 1 / hp
+
+    D1_up[i, i] = -1 / 2
+    D1_up[i, i + 1] = 1 / 2
+
+    for i in range(1, N - 1, 1):
+        hp = x[i + 1] - x[i]
+        hm = x[i] - x[i - 1]
+
+        M[i, i] = (hp + hm) / 2
+
+        D2[i, i] = -(hp + hm) / (hp * hm)
+        D2[i, i + 1] = 1 / hp
+        D2[i, i - 1] = 1 / hm
+
+        D1_up[i, i] = (hp + hm) / (2 * hm)
+        D1_up[i, i - 1] = -(hp + hm) / (2 * hm)
+
+    i = N - 1
+    hm = x[i] - x[i - 1]
+
+    M[i, i] = hm / 2
+
+    D2[i, i] = -1 / hm
+    D2[i, i - 1] = 1 / hm
+
+    D1_up[i, i] = (hp + hm) / (2 * hm)
+    D1_up[i, i - 1] = -(hp + hm) / (2 * hm)
+    return M, D2, D1_up
