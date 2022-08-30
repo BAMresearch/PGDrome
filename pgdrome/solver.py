@@ -348,7 +348,7 @@ class PGDProblem1:
                 raise ValueError("Convergence not reached BUT Nmax reached!!")
 
         # save result in class instance
-        self.amplitude = [relConv, relConv2]
+        self.amplitude = relConv #[relConv, relConv2]
         self.PGD_modes = len(self.PGD_func[0])
 
         return self

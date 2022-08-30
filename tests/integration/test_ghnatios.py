@@ -505,8 +505,8 @@ class problem(unittest.TestCase):
         self.fixed_dim = 0
         self.values = [1.5, 25, 30] # test evaluation[y,q,u0]
 
-        self.plotting = True
-        # self.plotting = False
+        # self.plotting = True
+        self.plotting = False
 
 
     def TearDown(self):

@@ -1,11 +1,20 @@
 '''
-    simple 1D PGD example (uniaxial truss with constant load) with three PGD variables (space, load factor and Emodul factor)
+    simple 1D PGD example
 
-    solving PGD problem in standard way as well as refined
+    uniaxial truss with constant load both sides fixed
+      ->->->->-> p ->->->->->->
+    |>-------------------------<|
+        L=1,A
+    div(sigma)+f = 0
+    p = lambda_p * p0 und E = lambda_E*E0
 
-    returning PGDModel (as forward model) or PGD instance
+    PGD for displacements with PGD variable: X (x space), lam_p (load factor), lam_E (E Module factor)
+    DGL: \int var_eps E A eps dX = \int var_u f dX
 
+    compared to analytic solution
 '''
+
+
 
 import unittest
 import dolfin

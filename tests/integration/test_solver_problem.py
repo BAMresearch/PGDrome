@@ -1,5 +1,6 @@
 r'''
     2D linear elastictity PGD example
+        div(sigma) = 0 with sigma = C_E * eps
         geometry: 1000 x 100
         boundary: fixed at left side
         load: at top: first half with 1.5xloadfactor second half 0.5xloadfactor
@@ -11,6 +12,8 @@ r'''
         with E = lam_E E_0 and F2=lam_p F20/ F1=lam_p F10
     PGD for displacements with PGD variable: X (x,y space), lam_p (load factor), lam_E (E Module factor), nu (Poission ratio)
     DGL: \int var_eps C(E,nu) eps dX = \int var_u F2 dX_F2 + \int var_u F1 dX_F1
+
+    checking both solver types in pgd solver (linear, nonlinear)
 '''
 
 import unittest
@@ -267,7 +270,7 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,G,PGD_func,typ,nE,dim):
 
     return l
 
-def main_normal(vs, params, writeFlag=False, name='PGDsolution', problem='linear', settings={"linear_solver":"mumps"}):
+def main_PGD(vs, params, writeFlag=False, name='PGDsolution', problem='linear', settings={"linear_solver":"mumps"}):
     '''
         computation of PGD solution for given problem normal
         :param vs: list of function spaces len = num_pgd_var
@@ -326,10 +329,10 @@ def main_normal(vs, params, writeFlag=False, name='PGDsolution', problem='linear
 
     # solve displacement problem
     pgd_prob.max_fp_it = 20
-    pgd_prob.stop_fp = 'chady' #'chady' 'norm' #'delta'
+    pgd_prob.stop_fp = 'norm' #'chady' 'norm' #'delta'
     pgd_prob.tol_fp_it = 1e-5
     # pgd_prob.tol_abs = 1e-4
-    pgd_prob.fp_init = 'randomized' # -> not yet for more than 1D
+    # pgd_prob.fp_init = 'randomized' #
 
     pgd_prob.solve_PGD(_problem=problem,settings=settings)  # solve
 
@@ -437,9 +440,9 @@ class TestSolverProblem(unittest.TestCase):
         _, v_x = create_meshX([200, 20], self.ords[0])
         _, v_e = create_meshesExtra(self.numElems, self.ords[1:4], self.ranges)
         # solve PGD problem with linear solver
-        pgd_prob_lin, pgd_s_lin = main_normal([v_x] + v_e, self.params, writeFlag=self.write, name='PGDsolution', problem='linear')
+        pgd_prob_lin, pgd_s_lin = main_PGD([v_x] + v_e, self.params, writeFlag=self.write, name='PGDsolution', problem='linear')
         # solve PGD problem with nonlinear solver
-        pgd_prob_nl, pgd_s_nl = main_normal([v_x] + v_e, self.params, writeFlag=self.write, name='PGDsolution', problem='nonlinear', settings={"relative_tolerance":1e-8, "linear_solver": "mumps"})
+        pgd_prob_nl, pgd_s_nl = main_PGD([v_x] + v_e, self.params, writeFlag=self.write, name='PGDsolution', problem='nonlinear', settings={"relative_tolerance":1e-8, "linear_solver": "mumps"})
 
         # check solver convergences
         print('PGD amplitudes', pgd_prob_lin.amplitude, pgd_prob_nl.amplitude)
@@ -456,7 +459,7 @@ class TestSolverProblem(unittest.TestCase):
         error_point = np.linalg.norm(np.array(pgd_u(self.x)-ref_u(self.x)))/np.linalg.norm(ref_u(self.x))
         # errornorm over all nodes for given set of PGD variables
         errorL2 = np.linalg.norm(pgd_u.compute_vertex_values()[:] - ref_u.compute_vertex_values()[:], 2) / np.linalg.norm(ref_u.compute_vertex_values()[:], 2)
-        print(error_point, errorL2)
+        print(error_point, errorL2, pgd_prob_lin.amplitude[-2])
 
         # check
         self.assertTrue(error_point < pgd_prob_lin.amplitude[-2]) # 1e-4
