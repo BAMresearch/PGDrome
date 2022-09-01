@@ -13,8 +13,6 @@ import matplotlib.pyplot as plt
 from pgdrome.solver import PGDProblem1, FD_matrices
 from pgdrome.model import PGDErrorComputation
 
-from scipy.sparse import spdiags
-
 
 def create_meshes(num_elem, ord, ranges):
     '''
