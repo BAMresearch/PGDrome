@@ -3,6 +3,7 @@
 TEST: Elastic plate (2D) is modeled using PGD and FEM. The displacemetns 
 computed by the two mehods are compared to check its working well.
 
+TODO: check if this tests is really necessary
 """
 
 # import fenics as fe

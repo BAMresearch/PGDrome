@@ -89,7 +89,7 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,G,PGD_func,typ,nE,dim):
             * var_F * G[0][0] * param["A"] * dolfin.dx(meshes[0])
         if nE > 0:
             for old in range(nE):
-                l += - dolfin.Constant(param["alpha"][old]*dolfin.assemble(Fs[1] * PGD_func[1][old] * dolfin.dx(meshes[1])) \
+                l += - dolfin.Constant(dolfin.assemble(Fs[1] * PGD_func[1][old] * dolfin.dx(meshes[1])) \
                      * dolfin.assemble(Fs[2] * param["Efunc"] * PGD_func[2][old] * dolfin.dx(meshes[2])))\
                      * var_F.dx(0) * param["E_0"] * PGD_func[0][old].dx(0) * param["A"] *dolfin.dx(meshes[0])
 
@@ -99,7 +99,7 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,G,PGD_func,typ,nE,dim):
             * var_F * G[1][0] * dolfin.dx(meshes[1])
         if nE > 0:
             for old in range(nE):
-                l += - dolfin.Constant(param["alpha"][old]*dolfin.assemble(Fs[0].dx(0) * param["E_0"] * PGD_func[0][old].dx(0) * param["A"] * dolfin.dx(meshes[0])) \
+                l += - dolfin.Constant(dolfin.assemble(Fs[0].dx(0) * param["E_0"] * PGD_func[0][old].dx(0) * param["A"] * dolfin.dx(meshes[0])) \
                      * dolfin.assemble(Fs[2] * param["Efunc"] * PGD_func[2][old] * dolfin.dx(meshes[2]))) \
                      * var_F * PGD_func[1][old] * dolfin.dx(meshes[1])
 
@@ -109,7 +109,7 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,G,PGD_func,typ,nE,dim):
             * var_F * G[2][0] * dolfin.dx(meshes[2])
         if nE > 0:
             for old in range(nE):
-                l += - dolfin.Constant(param["alpha"][old]*dolfin.assemble(Fs[0].dx(0) * param["E_0"] * PGD_func[0][old].dx(0) * param["A"] * dolfin.dx(meshes[0])) \
+                l += - dolfin.Constant(dolfin.assemble(Fs[0].dx(0) * param["E_0"] * PGD_func[0][old].dx(0) * param["A"] * dolfin.dx(meshes[0])) \
                      * dolfin.assemble(Fs[1] * PGD_func[1][old] * dolfin.dx(meshes[1])) )\
                      * var_F * param["Efunc"] * PGD_func[2][old] * dolfin.dx(meshes[2])
     return l
@@ -138,8 +138,9 @@ def main(vs, writeFlag=False, name=None):
 
     pgd_prob.stop_fp = 'norm' #'chady'
     pgd_prob.max_fp_it = 50
-    pgd_prob.tol_fp_it = 1e-5  # 1e-3
+    pgd_prob.tol_fp_it = 1e-5
     # pgd_prob.fp_init = 'randomized'
+    pgd_prob.norm_modes = 'stiff' #'l2'
 
     pgd_prob.solve_PGD() # solve
 

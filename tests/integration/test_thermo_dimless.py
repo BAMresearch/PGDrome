@@ -265,7 +265,9 @@ def main(vs, params, factor, name=None):
 
     # define nonhomogeneous dirichlet IC in time s
     param.update({'IC_r': dolfin.interpolate(dolfin.Expression('1.0', degree=4),vs[0])})
-    param.update({'IC_s': dolfin.interpolate(dolfin.Expression('(x[0] < 0.0 + 1E-8) ? Tamb : 0', degree=4,Tamb=params['T_amb']),vs[1])})
+    # param.update({'IC_s': dolfin.interpolate(dolfin.Expression('(x[0] < 0.0 + 1E-8) ? Tamb : 0', degree=4,Tamb=params['T_amb']),vs[1])})
+    param.update({'IC_s': dolfin.interpolate(
+        dolfin.Expression('Tamb*(1-1/T*x[0])', degree=4, Tamb=params['T_amb'], T=10./factors['t_0']), vs[1])})
     param.update({'IC_Eta': dolfin.interpolate(dolfin.Expression('1.0', degree=4),vs[2])})
 
     # define heat source in x, t and eta
@@ -289,11 +291,10 @@ def main(vs, params, factor, name=None):
                            PGD_nmax=PGD_nmax)
 
     # possible solver parameters (if not given then default values will be used!)
-    # pgd_prob.stop_fp = 'norm'
-    pgd_prob.stop_fp = 'chady'
+    pgd_prob.stop_fp = 'norm'
     pgd_prob.max_fp_it = 50
-    pgd_prob.tol_fp_it = 1e-5 #1e-5
-    pgd_prob.fp_init = 'randomized'
+    pgd_prob.tol_fp_it = 1e-5
+    # pgd_prob.fp_init = 'randomized'
 
     pgd_prob.solve_PGD(_problem='linear')
     # pgd_prob.solve_PGD(_problem='linear',solve_modes=["FEM","FEM","direct"]) # solve normal
@@ -343,7 +344,7 @@ def main_FD(vs, params, factor, name=None):
 
     # possible solver parameters (if not given then default values will be used!)
     # pgd_prob.stop_fp = 'norm'
-    pgd_prob.stop_fp = 'chady'
+    pgd_prob.stop_fp = 'norm'
     pgd_prob.max_fp_it = 50
     pgd_prob.tol_fp_it = 1e-5  # 1e-5
     pgd_prob.fp_init = 'randomized'
@@ -437,8 +438,8 @@ class PGDproblem(unittest.TestCase):
         # global parameters
         self.ord = 1  # 1 # 2 # order for each mesh
         self.ords = [self.ord, self.ord, self.ord]
-        # self.factors_o = {'x_0': 1, 't_0': 1., 'T_0':1}
-        self.factors_o = {'x_0': 0.1, 't_0': 10, 'T_0': 1000}
+        self.factors_o = {'x_0': 1, 't_0': 1., 'T_0':1}
+        #self.factors_o = {'x_0': 0.1, 't_0': 10, 'T_0': 1000}
         self.ranges = [[0., 0.1/self.factors_o['x_0']],  # xmin, xmax
                   [0., 10./self.factors_o['t_0']],  # tmin, tmax
                   [0.7, 0.9]]  # etamin, etamax
@@ -478,9 +479,9 @@ class PGDproblem(unittest.TestCase):
 
         # Computing solution and error
         #======================================================================
-        # pgd_test_old, param = main(Vs,self.param,self.factors_o) # Computing PGD
+        pgd_test_old, param = main(Vs,self.param,self.factors_o) # Computing PGD
 
-        pgd_test_new, param = main_FD(Vs, self.param, self.factors_o)  # Computing PGD
+        #pgd_test_new, param = main_FD(Vs, self.param, self.factors_o)  # Computing PGD
 
         fun_FOM = Reference_solution(Vs=Vs, param=self.param, meshes=meshes, factors=self.factors_o) # Computing Full-Order model: FEM
 

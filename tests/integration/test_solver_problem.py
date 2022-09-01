@@ -328,11 +328,11 @@ def main_PGD(vs, params, writeFlag=False, name='PGDsolution', problem='linear', 
                            probs=prob, seq_fp=seq_fp, PGD_nmax=PGD_nmax)
 
     # solve displacement problem
-    pgd_prob.max_fp_it = 20
-    pgd_prob.stop_fp = 'norm' #'chady' 'norm' #'delta'
-    pgd_prob.tol_fp_it = 1e-5
-    # pgd_prob.tol_abs = 1e-4
+    pgd_prob.max_fp_it = 50
+    pgd_prob.stop_fp = 'norm'
+    pgd_prob.tol_fp_it = 1e-4
     # pgd_prob.fp_init = 'randomized' #
+    pgd_prob.norm_modes = 'stiff' # default 'l2'
 
     pgd_prob.solve_PGD(_problem=problem,settings=settings)  # solve
 
@@ -496,11 +496,10 @@ class TestSolverProblem(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import logging
-
-    dolfin.set_log_level(dolfin.LogLevel.ERROR)
-    logging.basicConfig(level=logging.INFO)
-
-    unittest.main()
+    # import logging
+    #
+    # dolfin.set_log_level(dolfin.LogLevel.ERROR)
+    # logging.basicConfig(level=logging.INFO)
 
     unittest.main()
+
