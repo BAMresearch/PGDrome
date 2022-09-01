@@ -110,23 +110,23 @@ def problem_assemble_rhs_FEM(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,d
         l = df.Constant(df.assemble(Q[1][0] * Fs[1] * df.dx(meshes[1])) \
             * df.assemble(Q[2][0] * Fs[2] * df.dx(meshes[2])) \
             * df.assemble(Q[3][0] * Fs[3] * df.dx(meshes[3])) ) \
-            * Q[0][0] * var_F * df.dx(meshes[0]) \
-            - df.Constant(df.assemble(BC_y * Fs[1] * df.dx(meshes[1])) \
-            * df.assemble(BC_q * Fs[2] * df.dx(meshes[2])) \
-            * df.assemble(BC_u * Fs[3] * df.dx(meshes[3])) ) \
-            * param["k"] * BC_x.dx(0) * var_F.dx(0) * df.dx(meshes[0]) \
-            - df.Constant(df.assemble(BC_y.dx(0) * Fs[1].dx(0) * df.dx(meshes[1])) \
-            * df.assemble(BC_q * Fs[2] * df.dx(meshes[2])) \
-            * df.assemble(BC_u * Fs[3] * df.dx(meshes[3])) ) \
-            * param["k"] * BC_x * var_F * df.dx(meshes[0]) # T*Q - (k*dT/dx*DTBC/dx + k*dT/dx*DTBC/dx)
+            * Q[0][0] * var_F * df.dx(meshes[0]) #\
+#            - df.Constant(df.assemble(BC_y * Fs[1] * df.dx(meshes[1])) \
+#            * df.assemble(BC_q * Fs[2] * df.dx(meshes[2])) \
+#            * df.assemble(BC_u * Fs[3] * df.dx(meshes[3])) ) \
+#            * param["k"] * BC_x.dx(0) * var_F.dx(0) * df.dx(meshes[0]) \
+#            - df.Constant(df.assemble(BC_y.dx(0) * Fs[1].dx(0) * df.dx(meshes[1])) \
+#            * df.assemble(BC_q * Fs[2] * df.dx(meshes[2])) \
+#            * df.assemble(BC_u * Fs[3] * df.dx(meshes[3])) ) \
+#            * param["k"] * BC_x * var_F * df.dx(meshes[0]) # T*Q - (k*dT/dx*DTBC/dx + k*dT/dx*DTBC/dx)
 
         if nE > 0:
             for old in range(nE):
-                l +=- df.Constant(df.assemble(PGD_func[1][old] * Fs[1] * df.dx(meshes[1])) \
+                l +=- df.Constant(param["alpha"][old] * df.assemble(PGD_func[1][old] * Fs[1] * df.dx(meshes[1])) \
                     * df.assemble(PGD_func[2][old] * Fs[2] * df.dx(meshes[2])) \
                     * df.assemble(PGD_func[3][old] * Fs[3] * df.dx(meshes[3])) ) \
                     * param["k"] * PGD_func[0][old].dx(0) * var_F.dx(0) * df.dx(meshes[0]) \
-                    - df.Constant(df.assemble(PGD_func[1][old].dx(0) * Fs[1].dx(0) * df.dx(meshes[1])) \
+                    - df.Constant(param["alpha"][old] * df.assemble(PGD_func[1][old].dx(0) * Fs[1].dx(0) * df.dx(meshes[1])) \
                     * df.assemble(PGD_func[2][old]  * Fs[2] * df.dx(meshes[2])) \
                     * df.assemble(PGD_func[3][old]  * Fs[3] * df.dx(meshes[3])) ) \
                     * param["k"] * PGD_func[0][old]  * var_F * df.dx(meshes[0]) # -k*dT/dx*DTold/dx - k*dT/dx*DTold/dx
@@ -135,23 +135,23 @@ def problem_assemble_rhs_FEM(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,d
         l = df.Constant(df.assemble(Q[0][0] * Fs[0] * df.dx(meshes[0])) \
             * df.assemble(Q[2][0] * Fs[2] * df.dx(meshes[2])) \
             * df.assemble(Q[3][0] * Fs[3] * df.dx(meshes[3])) ) \
-            * Q[1][0] * var_F * df.dx(meshes[1]) \
-            - df.Constant(df.assemble(BC_x.dx(0) * Fs[0].dx(0) * df.dx(meshes[0])) \
-            * df.assemble(BC_q * Fs[2] * df.dx(meshes[2])) \
-            * df.assemble(BC_u * Fs[3] * df.dx(meshes[3])) ) \
-            * param["k"] * BC_y * var_F * df.dx(meshes[1]) \
-            - df.Constant(df.assemble(BC_x * Fs[0] * df.dx(meshes[0])) \
-            * df.assemble(BC_q * Fs[2] * df.dx(meshes[2])) \
-            * df.assemble(BC_u * Fs[3] * df.dx(meshes[3])) ) \
-            * param["k"] * BC_y.dx(0) * var_F.dx(0) * df.dx(meshes[1]) # T*Q - (k*dT/dx*DTBC/dx + k*dT/dx*DTBC/dx)
+            * Q[1][0] * var_F * df.dx(meshes[1]) #\
+#            - df.Constant(df.assemble(BC_x.dx(0) * Fs[0].dx(0) * df.dx(meshes[0])) \
+#            * df.assemble(BC_q * Fs[2] * df.dx(meshes[2])) \
+#            * df.assemble(BC_u * Fs[3] * df.dx(meshes[3])) ) \
+#            * param["k"] * BC_y * var_F * df.dx(meshes[1]) \
+#            - df.Constant(df.assemble(BC_x * Fs[0] * df.dx(meshes[0])) \
+#            * df.assemble(BC_q * Fs[2] * df.dx(meshes[2])) \
+#            * df.assemble(BC_u * Fs[3] * df.dx(meshes[3])) ) \
+#            * param["k"] * BC_y.dx(0) * var_F.dx(0) * df.dx(meshes[1]) # T*Q - (k*dT/dx*DTBC/dx + k*dT/dx*DTBC/dx)
 
         if nE > 0:
             for old in range(nE):
-                l +=- df.Constant(df.assemble(PGD_func[0][old].dx(0) * Fs[0].dx(0) * df.dx(meshes[0])) \
+                l +=- df.Constant(param["alpha"][old]* df.assemble(PGD_func[0][old].dx(0) * Fs[0].dx(0) * df.dx(meshes[0])) \
                     * df.assemble(PGD_func[2][old] * Fs[2] * df.dx(meshes[2])) \
                     * df.assemble(PGD_func[3][old] * Fs[3] * df.dx(meshes[3])) ) \
                     * param["k"] * PGD_func[1][old] * var_F * df.dx(meshes[1]) \
-                    - df.Constant(df.assemble(PGD_func[0][old] * Fs[0] * df.dx(meshes[0])) \
+                    - df.Constant(param["alpha"][old]*df.assemble(PGD_func[0][old] * Fs[0] * df.dx(meshes[0])) \
                     * df.assemble(PGD_func[2][old]  * Fs[2] * df.dx(meshes[2])) \
                     * df.assemble(PGD_func[3][old]  * Fs[3] * df.dx(meshes[3])) ) \
                     * param["k"] * PGD_func[1][old].dx(0)  * var_F.dx(0) * df.dx(meshes[1]) # -k*dT/dx*DTold/dx - k*dT/dx*DTold/dx
@@ -160,23 +160,23 @@ def problem_assemble_rhs_FEM(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,d
         l = df.Constant(df.assemble(Q[0][0] * Fs[0] * df.dx(meshes[0])) \
             * df.assemble(Q[1][0] * Fs[1] * df.dx(meshes[1])) \
             * df.assemble(Q[3][0] * Fs[3] * df.dx(meshes[3])) ) \
-            * Q[2][0] * var_F * df.dx(meshes[2]) \
-            - df.Constant(df.assemble(BC_x.dx(0) * Fs[0].dx(0) * df.dx(meshes[0])) \
-            * df.assemble(BC_y * Fs[1] * df.dx(meshes[1])) \
-            * df.assemble(BC_u * Fs[3] * df.dx(meshes[3])) ) \
-            * param["k"] * BC_q * var_F * df.dx(meshes[2]) \
-            - df.Constant(df.assemble(BC_x * Fs[0] * df.dx(meshes[0])) \
-            * df.assemble(BC_y.dx(0) * Fs[1].dx(0) * df.dx(meshes[1])) \
-            * df.assemble(BC_u * Fs[3] * df.dx(meshes[3])) ) \
-            * param["k"] * BC_q * var_F * df.dx(meshes[2]) # T*Q - (k*dT/dx*DTBC/dx + k*dT/dx*DTBC/dx)
+            * Q[2][0] * var_F * df.dx(meshes[2]) #\
+#            - df.Constant(df.assemble(BC_x.dx(0) * Fs[0].dx(0) * df.dx(meshes[0])) \
+#            * df.assemble(BC_y * Fs[1] * df.dx(meshes[1])) \
+#            * df.assemble(BC_u * Fs[3] * df.dx(meshes[3])) ) \
+#            * param["k"] * BC_q * var_F * df.dx(meshes[2]) \
+#            - df.Constant(df.assemble(BC_x * Fs[0] * df.dx(meshes[0])) \
+#            * df.assemble(BC_y.dx(0) * Fs[1].dx(0) * df.dx(meshes[1])) \
+#            * df.assemble(BC_u * Fs[3] * df.dx(meshes[3])) ) \
+#            * param["k"] * BC_q * var_F * df.dx(meshes[2]) # T*Q - (k*dT/dx*DTBC/dx + k*dT/dx*DTBC/dx)
 
         if nE > 0:
             for old in range(nE):
-                l +=- df.Constant(df.assemble(PGD_func[0][old].dx(0) * Fs[0].dx(0) * df.dx(meshes[0])) \
+                l +=- df.Constant(param["alpha"][old]* df.assemble(PGD_func[0][old].dx(0) * Fs[0].dx(0) * df.dx(meshes[0])) \
                     * df.assemble(PGD_func[1][old] * Fs[1] * df.dx(meshes[1])) \
                     * df.assemble(PGD_func[3][old] * Fs[3] * df.dx(meshes[3])) ) \
                     * param["k"] * PGD_func[2][old] * var_F * df.dx(meshes[2]) \
-                    - df.Constant(df.assemble(PGD_func[0][old] * Fs[0] * df.dx(meshes[0])) \
+                    - df.Constant(param["alpha"][old]* df.assemble(PGD_func[0][old] * Fs[0] * df.dx(meshes[0])) \
                     * df.assemble(PGD_func[1][old].dx(0) * Fs[1].dx(0) * df.dx(meshes[1])) \
                     * df.assemble(PGD_func[3][old] * Fs[3] * df.dx(meshes[3])) ) \
                     * param["k"] * PGD_func[2][old] * var_F * df.dx(meshes[2]) # -k*dT/dx*DTold/dx - k*dT/dx*DTold/dx
@@ -185,23 +185,23 @@ def problem_assemble_rhs_FEM(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,d
         l = df.Constant(df.assemble(Q[0][0] * Fs[0] * df.dx(meshes[0])) \
             * df.assemble(Q[1][0] * Fs[1] * df.dx(meshes[1])) \
             * df.assemble(Q[2][0] * Fs[2] * df.dx(meshes[2])) ) \
-            * Q[3][0] * var_F * df.dx(meshes[3]) \
-            - df.Constant(df.assemble(BC_x.dx(0) * Fs[0].dx(0) * df.dx(meshes[0])) \
-            * df.assemble(BC_y * Fs[1] * df.dx(meshes[1])) \
-            * df.assemble(BC_q * Fs[2] * df.dx(meshes[2])) ) \
-            * param["k"] * BC_u * var_F * df.dx(meshes[3]) \
-            - df.Constant(df.assemble(BC_x * Fs[0] * df.dx(meshes[0])) \
-            * df.assemble(BC_y.dx(0) * Fs[1].dx(0) * df.dx(meshes[1])) \
-            * df.assemble(BC_q * Fs[2] * df.dx(meshes[2])) ) \
-            * param["k"] * BC_u * var_F * df.dx(meshes[3]) # T*Q - (k*dT/dx*DTBC/dx + k*dT/dx*DTBC/dx)
+            * Q[3][0] * var_F * df.dx(meshes[3]) #\
+#            - df.Constant(df.assemble(BC_x.dx(0) * Fs[0].dx(0) * df.dx(meshes[0])) \
+#            * df.assemble(BC_y * Fs[1] * df.dx(meshes[1])) \
+#            * df.assemble(BC_q * Fs[2] * df.dx(meshes[2])) ) \
+#            * param["k"] * BC_u * var_F * df.dx(meshes[3]) \
+#            - df.Constant(df.assemble(BC_x * Fs[0] * df.dx(meshes[0])) \
+#            * df.assemble(BC_y.dx(0) * Fs[1].dx(0) * df.dx(meshes[1])) \
+#            * df.assemble(BC_q * Fs[2] * df.dx(meshes[2])) ) \
+#            * param["k"] * BC_u * var_F * df.dx(meshes[3]) # T*Q - (k*dT/dx*DTBC/dx + k*dT/dx*DTBC/dx)
 
         if nE > 0:
             for old in range(nE):
-                l +=- df.Constant(df.assemble(PGD_func[0][old].dx(0) * Fs[0].dx(0) * df.dx(meshes[0])) \
+                l +=- df.Constant(param["alpha"][old]* df.assemble(PGD_func[0][old].dx(0) * Fs[0].dx(0) * df.dx(meshes[0])) \
                     * df.assemble(PGD_func[1][old] * Fs[1] * df.dx(meshes[1])) \
                     * df.assemble(PGD_func[2][old] * Fs[2] * df.dx(meshes[2])) ) \
                     * param["k"] * PGD_func[3][old] * var_F * df.dx(meshes[3]) \
-                    - df.Constant(df.assemble(PGD_func[0][old] * Fs[0] * df.dx(meshes[0])) \
+                    - df.Constant(param["alpha"][old]* df.assemble(PGD_func[0][old] * Fs[0] * df.dx(meshes[0])) \
                     * df.assemble(PGD_func[1][old].dx(0) * Fs[1].dx(0) * df.dx(meshes[1])) \
                     * df.assemble(PGD_func[2][old] * Fs[2] * df.dx(meshes[2])) ) \
                     * param["k"] * PGD_func[3][old] * var_F * df.dx(meshes[3]) # -k*dT/dx*DTold/dx - k*dT/dx*DTold/dx
@@ -268,23 +268,23 @@ def problem_assemble_rhs_FD(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,di
         l = Fs[1].vector()[:].transpose() @ param['M_y'] @ Q[1][0].vector()[:].transpose() \
             * Fs[2].vector()[:].transpose() @ param['M_q'] @ Q[2][0].vector()[:].transpose() \
             * Fs[3].vector()[:].transpose() @ param['M_u'] @ Q[3][0].vector()[:].transpose()  \
-            * param['M_x'] @ Q[0][0].vector()[:] \
-            + Fs[1].vector()[:].transpose() @ param['M_y'] @ BC_y.vector()[:] \
-            * Fs[2].vector()[:].transpose() @ param['M_q'] @ BC_q.vector()[:] \
-            * Fs[3].vector()[:].transpose() @ param['M_u'] @ BC_u.vector()[:] \
-            * param["k"] * param['D2_x'] @ BC_x.vector()[:]  \
-            + Fs[1].vector()[:].transpose() @ param['D2_y'] @ BC_y.vector()[:] \
-            * Fs[2].vector()[:].transpose() @ param['M_q'] @ BC_q.vector()[:] \
-            * Fs[3].vector()[:].transpose() @ param['M_u'] @ BC_u.vector()[:] \
-            * param["k"] * param['M_x'] @ BC_x.vector()[:] # T*Q - -(k*dT/dx*DTBC/dx + k*dT/dx*DTBC/dx)
+            * param['M_x'] @ Q[0][0].vector()[:] #\
+            # + Fs[1].vector()[:].transpose() @ param['M_y'] @ BC_y.vector()[:] \
+            # * Fs[2].vector()[:].transpose() @ param['M_q'] @ BC_q.vector()[:] \
+            # * Fs[3].vector()[:].transpose() @ param['M_u'] @ BC_u.vector()[:] \
+            # * param["k"] * param['D2_x'] @ BC_x.vector()[:]  \
+            # + Fs[1].vector()[:].transpose() @ param['D2_y'] @ BC_y.vector()[:] \
+            # * Fs[2].vector()[:].transpose() @ param['M_q'] @ BC_q.vector()[:] \
+            # * Fs[3].vector()[:].transpose() @ param['M_u'] @ BC_u.vector()[:] \
+            # * param["k"] * param['M_x'] @ BC_x.vector()[:] # T*Q - -(k*dT/dx*DTBC/dx + k*dT/dx*DTBC/dx)
 
         if nE > 0:
             for old in range(nE):
-                l +=+ Fs[1].vector()[:].transpose() @ param['M_y'] @ PGD_func[1][old].vector()[:] \
+                l +=+ param["alpha"][old]*Fs[1].vector()[:].transpose() @ param['M_y'] @ PGD_func[1][old].vector()[:] \
                     * Fs[2].vector()[:].transpose() @ param['M_q'] @ PGD_func[2][old].vector()[:] \
                     * Fs[3].vector()[:].transpose() @ param['M_u'] @ PGD_func[3][old].vector()[:] \
                     * param["k"] * param['D2_x'] @ PGD_func[0][old].vector()[:] \
-                    + Fs[1].vector()[:].transpose() @ param['D2_y'] @ PGD_func[1][old].vector()[:] \
+                    + param["alpha"][old]*Fs[1].vector()[:].transpose() @ param['D2_y'] @ PGD_func[1][old].vector()[:] \
                     * Fs[2].vector()[:].transpose() @ param['M_q'] @ PGD_func[2][old].vector()[:] \
                     * Fs[3].vector()[:].transpose() @ param['M_u'] @ PGD_func[3][old].vector()[:] \
                     * param["k"] * param['M_x'] @ PGD_func[0][old].vector()[:] # - (-k*dT/dx*DTold/dx - k*dT/dx*DTold/dx)
@@ -296,23 +296,23 @@ def problem_assemble_rhs_FD(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,di
         l = Fs[0].vector()[:].transpose() @ param['M_x'] @ Q[0][0].vector()[:].transpose() \
             * Fs[2].vector()[:].transpose() @ param['M_q'] @ Q[2][0].vector()[:].transpose() \
             * Fs[3].vector()[:].transpose() @ param['M_u'] @ Q[3][0].vector()[:].transpose()  \
-            * param['M_y'] @ Q[1][0].vector()[:] \
-            + Fs[0].vector()[:].transpose() @ param['D2_x'] @ BC_x.vector()[:] \
-            * Fs[2].vector()[:].transpose() @ param['M_q'] @ BC_q.vector()[:] \
-            * Fs[3].vector()[:].transpose() @ param['M_u'] @ BC_u.vector()[:] \
-            * param["k"] * param['M_y'] @ BC_y.vector()[:] \
-            + Fs[0].vector()[:].transpose() @ param['M_x'] @ BC_x.vector()[:] \
-            * Fs[2].vector()[:].transpose() @ param['M_q'] @ BC_q.vector()[:] \
-            * Fs[3].vector()[:].transpose() @ param['M_u'] @ BC_u.vector()[:] \
-            * param["k"] * param['D2_y'] @ BC_y.vector()[:]  # T*Q - -(k*dT/dx*DTBC/dx + k*dT/dx*DTBC/dx)
+            * param['M_y'] @ Q[1][0].vector()[:] #\
+            # + Fs[0].vector()[:].transpose() @ param['D2_x'] @ BC_x.vector()[:] \
+            # * Fs[2].vector()[:].transpose() @ param['M_q'] @ BC_q.vector()[:] \
+            # * Fs[3].vector()[:].transpose() @ param['M_u'] @ BC_u.vector()[:] \
+            # * param["k"] * param['M_y'] @ BC_y.vector()[:] \
+            # + Fs[0].vector()[:].transpose() @ param['M_x'] @ BC_x.vector()[:] \
+            # * Fs[2].vector()[:].transpose() @ param['M_q'] @ BC_q.vector()[:] \
+            # * Fs[3].vector()[:].transpose() @ param['M_u'] @ BC_u.vector()[:] \
+            # * param["k"] * param['D2_y'] @ BC_y.vector()[:]  # T*Q - -(k*dT/dx*DTBC/dx + k*dT/dx*DTBC/dx)
 
         if nE > 0:
             for old in range(nE):
-                l +=+ Fs[0].vector()[:].transpose() @ param['D2_x'] @ PGD_func[0][old].vector()[:] \
+                l +=+ param["alpha"][old]*Fs[0].vector()[:].transpose() @ param['D2_x'] @ PGD_func[0][old].vector()[:] \
                     * Fs[2].vector()[:].transpose() @ param['M_q'] @ PGD_func[2][old].vector()[:] \
                     * Fs[3].vector()[:].transpose() @ param['M_u'] @ PGD_func[3][old].vector()[:] \
                     * param["k"] * param['M_y'] @ PGD_func[1][old].vector()[:] \
-                    + Fs[0].vector()[:].transpose() @ param['M_x'] @ PGD_func[0][old].vector()[:] \
+                    + param["alpha"][old]*Fs[0].vector()[:].transpose() @ param['M_x'] @ PGD_func[0][old].vector()[:] \
                     * Fs[2].vector()[:].transpose() @ param['M_q'] @ PGD_func[2][old].vector()[:] \
                     * Fs[3].vector()[:].transpose() @ param['M_u'] @ PGD_func[3][old].vector()[:] \
                     * param["k"] * param['D2_y'] @ PGD_func[1][old].vector()[:] # -(-k*dT/dx*DTold/dx - k*dT/dx*DTold/dx)
@@ -321,23 +321,23 @@ def problem_assemble_rhs_FD(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,di
         l = Fs[0].vector()[:].transpose() @ param['M_x'] @ Q[0][0].vector()[:].transpose() \
             * Fs[1].vector()[:].transpose() @ param['M_y'] @ Q[1][0].vector()[:].transpose() \
             * Fs[3].vector()[:].transpose() @ param['M_u'] @ Q[3][0].vector()[:].transpose()  \
-            * param['M_q'] @ Q[2][0].vector()[:] \
-            + Fs[0].vector()[:].transpose() @ param['D2_x'] @ BC_x.vector()[:] \
-            * Fs[1].vector()[:].transpose() @ param['M_y'] @ BC_y.vector()[:] \
-            * Fs[3].vector()[:].transpose() @ param['M_u'] @ BC_u.vector()[:] \
-            * param["k"] * param['M_q'] @ BC_q.vector()[:] \
-            + Fs[0].vector()[:].transpose() @ param['M_x'] @ BC_x.vector()[:] \
-            * Fs[1].vector()[:].transpose() @ param['D2_y'] @ BC_y.vector()[:] \
-            * Fs[3].vector()[:].transpose() @ param['M_u'] @ BC_u.vector()[:] \
-            * param["k"] * param['M_q'] @ BC_q.vector()[:]  # T*Q - -(k*dT/dx*DTBC/dx + k*dT/dx*DTBC/dx)
+            * param['M_q'] @ Q[2][0].vector()[:] #\
+            # + Fs[0].vector()[:].transpose() @ param['D2_x'] @ BC_x.vector()[:] \
+            # * Fs[1].vector()[:].transpose() @ param['M_y'] @ BC_y.vector()[:] \
+            # * Fs[3].vector()[:].transpose() @ param['M_u'] @ BC_u.vector()[:] \
+            # * param["k"] * param['M_q'] @ BC_q.vector()[:] \
+            # + Fs[0].vector()[:].transpose() @ param['M_x'] @ BC_x.vector()[:] \
+            # * Fs[1].vector()[:].transpose() @ param['D2_y'] @ BC_y.vector()[:] \
+            # * Fs[3].vector()[:].transpose() @ param['M_u'] @ BC_u.vector()[:] \
+            # * param["k"] * param['M_q'] @ BC_q.vector()[:]  # T*Q - -(k*dT/dx*DTBC/dx + k*dT/dx*DTBC/dx)
 
         if nE > 0:
             for old in range(nE):
-                l +=+ Fs[0].vector()[:].transpose() @ param['D2_x'] @ PGD_func[0][old].vector()[:] \
+                l +=+ param["alpha"][old]*Fs[0].vector()[:].transpose() @ param['D2_x'] @ PGD_func[0][old].vector()[:] \
                     * Fs[1].vector()[:].transpose() @ param['M_y'] @ PGD_func[1][old].vector()[:] \
                     * Fs[3].vector()[:].transpose() @ param['M_u'] @ PGD_func[3][old].vector()[:] \
                     * param["k"] * param['M_q'] @ PGD_func[2][old].vector()[:] \
-                    + Fs[0].vector()[:].transpose() @ param['M_x'] @ PGD_func[0][old].vector()[:] \
+                    + param["alpha"][old]*Fs[0].vector()[:].transpose() @ param['M_x'] @ PGD_func[0][old].vector()[:] \
                     * Fs[1].vector()[:].transpose() @ param['D2_y'] @ PGD_func[1][old].vector()[:] \
                     * Fs[3].vector()[:].transpose() @ param['M_u'] @ PGD_func[3][old].vector()[:] \
                     * param["k"] * param['M_q'] @ PGD_func[2][old].vector()[:] # -(-k*dT/dx*DTold/dx - k*dT/dx*DTold/dx)
@@ -346,23 +346,23 @@ def problem_assemble_rhs_FD(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,di
         l = Fs[0].vector()[:].transpose() @ param['M_x'] @ Q[0][0].vector()[:].transpose() \
             * Fs[1].vector()[:].transpose() @ param['M_y'] @ Q[1][0].vector()[:].transpose() \
             * Fs[2].vector()[:].transpose() @ param['M_q'] @ Q[2][0].vector()[:].transpose()  \
-            * param['M_u'] @ Q[3][0].vector()[:] \
-            + Fs[0].vector()[:].transpose() @ param['D2_x'] @ BC_x.vector()[:] \
-            * Fs[1].vector()[:].transpose() @ param['M_y'] @ BC_y.vector()[:] \
-            * Fs[2].vector()[:].transpose() @ param['M_q'] @ BC_q.vector()[:] \
-            * param["k"] * param['M_u'] @ BC_u.vector()[:] \
-            + Fs[0].vector()[:].transpose() @ param['M_x'] @ BC_x.vector()[:] \
-            * Fs[1].vector()[:].transpose() @ param['D2_y'] @ BC_y.vector()[:] \
-            * Fs[2].vector()[:].transpose() @ param['M_q'] @ BC_q.vector()[:] \
-            * param["k"] * param['M_u'] @ BC_u.vector()[:]  # T*Q - -(k*dT/dx*DTBC/dx + k*dT/dx*DTBC/dx)
+            * param['M_u'] @ Q[3][0].vector()[:] #\
+            # + Fs[0].vector()[:].transpose() @ param['D2_x'] @ BC_x.vector()[:] \
+            # * Fs[1].vector()[:].transpose() @ param['M_y'] @ BC_y.vector()[:] \
+            # * Fs[2].vector()[:].transpose() @ param['M_q'] @ BC_q.vector()[:] \
+            # * param["k"] * param['M_u'] @ BC_u.vector()[:] \
+            # + Fs[0].vector()[:].transpose() @ param['M_x'] @ BC_x.vector()[:] \
+            # * Fs[1].vector()[:].transpose() @ param['D2_y'] @ BC_y.vector()[:] \
+            # * Fs[2].vector()[:].transpose() @ param['M_q'] @ BC_q.vector()[:] \
+            # * param["k"] * param['M_u'] @ BC_u.vector()[:]  # T*Q - -(k*dT/dx*DTBC/dx + k*dT/dx*DTBC/dx)
 
         if nE > 0:
             for old in range(nE):
-                l +=+ Fs[0].vector()[:].transpose() @ param['D2_x'] @ PGD_func[0][old].vector()[:] \
+                l +=+ param["alpha"][old]*Fs[0].vector()[:].transpose() @ param['D2_x'] @ PGD_func[0][old].vector()[:] \
                     * Fs[1].vector()[:].transpose() @ param['M_y'] @ PGD_func[1][old].vector()[:] \
                     * Fs[2].vector()[:].transpose() @ param['M_q'] @ PGD_func[2][old].vector()[:] \
                     * param["k"] * param['M_u'] @ PGD_func[3][old].vector()[:] \
-                    + Fs[0].vector()[:].transpose() @ param['M_x'] @ PGD_func[0][old].vector()[:] \
+                    + param["alpha"][old]*Fs[0].vector()[:].transpose() @ param['M_x'] @ PGD_func[0][old].vector()[:] \
                     * Fs[1].vector()[:].transpose() @ param['D2_y'] @ PGD_func[1][old].vector()[:] \
                     * Fs[2].vector()[:].transpose() @ param['M_q'] @ PGD_func[2][old].vector()[:] \
                     * param["k"] * param['M_u'] @ PGD_func[3][old].vector()[:] # -(-k*dT/dx*DTold/dx - k*dT/dx*DTold/dx)
@@ -372,7 +372,8 @@ def problem_assemble_rhs_FD(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,di
 def create_PGD(param=[], vs=[], _type=None):
 
         #define nonhomgeneous BC
-        param['BC_x'] = df.interpolate(df.Expression('x[0]<0+1e-8 ? 1.0-1.0/3.0*x[0] : (x[0]>L-1e-8 ? 1.0-1.0/3.0*x[0] : 0)',degree=1, L=param['lx']),vs[0])
+        # param['BC_x'] = df.interpolate(df.Expression('x[0]<0+1e-8 ? 1.0-1.0/3.0*x[0] : (x[0]>L-1e-8 ? 1.0-1.0/3.0*x[0] : 0)',degree=1, L=param['lx']),vs[0])
+        param['BC_x'] = df.interpolate(df.Expression('1.0-1.0/3.0*x[0]',degree=1),vs[0])
         param['BC_y'] = df.interpolate(df.Expression('1.0',degree=1),vs[1])
         param['BC_q'] = df.interpolate(df.Expression('1.0',degree=1),vs[2])
         param['BC_u0'] = df.interpolate(df.Expression('x[0]',degree=1),vs[3])
@@ -421,16 +422,19 @@ def create_PGD(param=[], vs=[], _type=None):
                                Vs=vs, dom=0, bc_fct=create_bc, load=[qx, qy, qq, qu0],
                                param=param, rhs_fct=ass_rhs,
                                lhs_fct=ass_lhs, probs=['r', 's', 't', 'u'],
-                               seq_fp=np.arange(len(vs)), PGD_nmax=15)
+                               seq_fp=np.arange(len(vs)), PGD_nmax=1)
+        if _type == 'FD':
+            pgd_prob.MM = [param['M_x'], param['M_y'], param['M_q'], param['M_u']] # for norms!
         pgd_prob.stop_fp = 'chady'
         pgd_prob.max_fp_it = 50
         pgd_prob.tol_fp_it = 1e-5  # 1e-5
-        pgd_prob.fp_init = 'randomized' #?
+        # pgd_prob.fp_init = 'randomized' #?
 
         pgd_prob.solve_PGD(_problem='linear', solve_modes=solve_modes)
 
         print(pgd_prob.simulation_info)
         print('PGD Amplitude', pgd_prob.amplitude)
+        print('norms', pgd_prob.alpha)
 
         pgd_s = pgd_prob.return_PGD()  # as PGD class instance
 
@@ -493,7 +497,7 @@ class problem(unittest.TestCase):
     def setUp(self):
 
         # problem parameters
-        self.param = {"k": 1, "lx": 3, "ly": 3} # global parameters
+        self.param = {"k": 0.5, "lx": 3, "ly": 3} # global parameters
 
         self.ranges = [[0., 3.], #xmin, xmax
                        [0., 3.], #ymin, ymax
@@ -501,12 +505,13 @@ class problem(unittest.TestCase):
                        [10., 50.]] #u0min, u0max
         self.ord = [1, 1, 1, 1] # order of each variable (for FEM use the first one)
         self.elem = [30,20,100,40] # number of elements for each variable
+        # self.elem = [5, 5, 10, 10]  # number of elements for each variable
 
         self.fixed_dim = 0
-        self.values = [1.5, 25, 30] # test evaluation[y,q,u0]
+        self.values = [1.5, 50, 10] # test evaluation[y,q,u0]
 
-        # self.plotting = True
-        self.plotting = False
+        self.plotting = True
+        # self.plotting = False
 
 
     def TearDown(self):
@@ -521,6 +526,8 @@ class problem(unittest.TestCase):
 
         # PGD FD
         pgd_fd, param = create_PGD(param=self.param,vs=vs,_type="FD")
+
+        input()
 
         if self.plotting:
             #### plotting optional
@@ -571,9 +578,9 @@ class problem(unittest.TestCase):
             errors_FEM1.append(np.linalg.norm(u1-u3)/np.linalg.norm(u3)) #PGD FD - FEM
             errors_FEM2.append(np.linalg.norm(u2-u3)/np.linalg.norm(u3)) #PGD FEM - FEM
 
-        # print(errors_PGD, np.mean(errors_PGD))
-        # print(errors_FEM1, np.mean(errors_FEM1))
-        # print(errors_FEM1, np.mean(errors_FEM2))
+        print(errors_PGD, np.mean(errors_PGD))
+        print(errors_FEM1, np.mean(errors_FEM1))
+        print(errors_FEM1, np.mean(errors_FEM2))
         self.assertTrue(np.mean(errors_PGD) < 5e-4)
         self.assertTrue(np.mean(errors_FEM1) < 5e-4)
         self.assertTrue(np.mean(errors_FEM2) < 1e-5)
@@ -584,6 +591,6 @@ if __name__ == '__main__':
     df.set_log_level(df.LogLevel.ERROR)
 
     import logging
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
 
     unittest.main()

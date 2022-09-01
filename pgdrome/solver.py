@@ -80,7 +80,9 @@ class PGDProblem1:
 
         # computed by class functions
         self.PGD_func = []  # solution of solve_PGD
+        self.alpha = []  # joined norms of mode sets part of solution
         self.amplitude = []  # amplitude of PGD problem
+
 
         self.PGD_modes = None
 
@@ -102,6 +104,7 @@ class PGDProblem1:
             "FD": "FD"
         }
 
+        self.MM = [] # Mass matrix for norms if FD is used!
     @property
     # @functools.lru_cache(maxsize=100, typed=True)
     def dom(self):
@@ -122,11 +125,12 @@ class PGDProblem1:
         self.logger.debug('boundary array: %s', self.bc_fct(self.V, dom_tmp, self.param))
         return self.bc_fct(self.V, dom_tmp, self.param)
 
-    def get_Fsinit(self, V, bc=None):
+    def get_Fsinit(self, V, bc=None, solve_modes=None):
         '''
             create initialized functions with one including boundary conditions if there exist
             :param V: list of function spaces or only one fct space for which init fct should be computed
             :param bc: list of corresponding fenics boundary conditions
+            :param solve_modes: if None or FEM dolfin.norm if FD use M matrices for norm has to be given in problem!!
             :return: Fs_init list of initialized (one) modes
         '''
         self.logger.debug("in get_Fsinit (input lenghts: %s, %s)", len(V), len(bc))
@@ -145,40 +149,48 @@ class PGDProblem1:
                 if dimension_dim == 1: # scalar Function Space
                     if bc[dim] != 0:
                         Fs_init[dim] = dolfin.project(dolfin.Expression('1.0', degree=0),
-                                                      V=V[dim], bcs=bc[dim], solver_type='mumps')
+                                                      V=V[dim], bcs=bc[dim])
                     else:
-                        Fs_init[dim] = dolfin.project(dolfin.Expression('1.0', degree=0), V=V[dim], solver_type='mumps')
+                        Fs_init[dim] = dolfin.project(dolfin.Expression('1.0', degree=0), V=V[dim])
 
                     if self.fp_init.lower()=='randomized': # as in Chadys matlab code
                         idx = np.where(Fs_init[dim].vector()[:]!=0)[0] # idx without boundary
                         Fs_init[dim].vector()[idx] = np.random.rand(len(idx))
-                        Fs_init[dim].vector()[:] *= 1./dolfin.norm(Fs_init[dim]) # normalization with l2 norm
+
+                    if solve_modes != None:
+                        if solve_modes[dim] == "FD":
+                            norm_Fs_init = np.sqrt(Fs_init[dim].vector()[:].transpose() @ self.MM[dim] @ Fs_init[dim].vector()[:]) # norm with given M matrix
+                    else:
+                        norm_Fs_init = dolfin.norm(Fs_init[dim]) # classical l2 norm
+                    Fs_init[dim].vector()[:] *= 1./norm_Fs_init # normalization
                     self.logger.debug('Fs_init[dim]: %s ', Fs_init[dim].compute_vertex_values()[:])
 
                 elif dimension_dim == 2:  # VectorFunctionSpace!!!
                     if bc[dim] != 0:
                         Fs_init[dim] = dolfin.project(dolfin.Expression(('1.0', '1.0'), element=V[dim].ufl_element()),
-                                                      V=V[dim], bcs=bc[dim], solver_type='mumps')
+                                                      V=V[dim], bcs=bc[dim])#, solver_type='mumps')
                     else:
                         Fs_init[dim] = dolfin.project(dolfin.Expression(('1.0', '1.0'), element=V[dim].ufl_element()),
-                                                      V=V[dim], solver_type='mumps')
+                                                      V=V[dim])#, solver_type='mumps')
                     if self.fp_init.lower()=='randomized':
                         idx = np.where(Fs_init[dim].vector()[:] != 0)[0]  # idx without boundary
                         Fs_init[dim].vector()[idx] = np.random.rand(len(idx))
-                        Fs_init[dim].vector()[:] *= 1. / dolfin.norm(Fs_init[dim])  # normalization with l2 norm
+
+                    Fs_init[dim].vector()[:] *= 1. / dolfin.norm(Fs_init[dim])  # normalization with l2 norm
                 elif dimension_dim == 3:  # VectorFunctionSpace!!!
                     if bc[dim] != 0:
                         Fs_init[dim] = dolfin.project(
                             dolfin.Expression(('1.0', '1.0', '1.0'), element=V[dim].ufl_element()),
-                            V=V[dim], bcs=bc[dim], solver_type='mumps')
+                            V=V[dim], bcs=bc[dim])#, solver_type='mumps')
                     else:
                         Fs_init[dim] = dolfin.project(
                             dolfin.Expression(('1.0', '1.0', '1.0'), element=V[dim].ufl_element()),
-                            V=V[dim], solver_type='mumps')
+                            V=V[dim])#, solver_type='mumps')
                     if self.fp_init.lower()=='randomized':
                         idx = np.where(Fs_init[dim].vector()[:] != 0)[0]  # idx without boundary
                         Fs_init[dim].vector()[idx] = np.random.rand(len(idx))
-                        Fs_init[dim].vector()[:] *= 1. / dolfin.norm(Fs_init[dim])  # normalization with l2 norm
+
+                    Fs_init[dim].vector()[:] *= 1. / dolfin.norm(Fs_init[dim])  # normalization with l2 norm
                 else:
                     self.logger.error('ERROR DIMENSION NOT defined!!!!!!!!!!!')
                     raise ValueError('ERROR DIMENSION NOT defined!!!!!!!!!!!')
@@ -188,18 +200,30 @@ class PGDProblem1:
                 raise ValueError('ERROR TENSOR function spaces not defined!!!!!')
             else:
                 # scalar function space for each dimension the same
-                if bc[dim] != 0:
-                    Fs_init[dim] = dolfin.project(dolfin.Expression('1.0', degree=0),
-                                                  V=V[dim], bcs=bc[dim], solver_type='mumps')
-                else:
-                    Fs_init[dim] = dolfin.project(dolfin.Expression('1.0', degree=0), V=V[dim], solver_type='mumps')
+                Fs_init[dim] = dolfin.project(dolfin.Expression('1.0', degree=0), V=V[dim])
+
+                if bc[dim] != 0:    #apply boundary without project so that it is the same as in matlab code!
+                    if isinstance(bc[dim],list):
+                        for i in range(len(bc[dim])):
+                            bc[dim][i].apply(Fs_init[dim].vector())
+                    else:
+                        bc[dim].apply(Fs_init[dim].vector())
 
                 if self.fp_init.lower()=='randomized': # as in Chadys matlab code
                     idx = np.where(Fs_init[dim].vector()[:] != 0)[0]  # idx without boundary
                     Fs_init[dim].vector()[idx] = np.random.rand(len(idx))
-                    Fs_init[dim].vector()[:] *= 1. / dolfin.norm(Fs_init[dim])  # normalization with l2 norm
-                self.logger.debug('Fs_init[dim]: %s ', Fs_init[dim].compute_vertex_values()[:])
 
+                if solve_modes != None:
+                    if solve_modes[dim] == "FD":
+                        print("FD norm!")
+                        norm_Fs_init = np.sqrt(Fs_init[dim].vector()[:].transpose() @ self.MM[dim] @ Fs_init[dim].vector()[
+                                                                                                 :])  # norm with given M matrix
+                else:
+                    norm_Fs_init = dolfin.norm(Fs_init[dim])  # classical l2 norm
+
+                self.logger.debug('Fs_init[dim] before normalization: %s', Fs_init[dim].compute_vertex_values()[:])
+                Fs_init[dim].vector()[:] *= 1. / norm_Fs_init  # normalization with l2 norm
+                self.logger.debug('Fs_init[dim]: %s ', Fs_init[dim].compute_vertex_values()[:])
 
         return Fs_init
 
@@ -227,12 +251,10 @@ class PGDProblem1:
                     # start PGD
                     normConv = list()
                     relConv = list()
-                    normConv2 = list()
-                    relConv2 = list()
 
             # initialize Functions including boundary conditions!
             self.logger.info("enrichment step %s ", n_enr)
-            Fs_init = self.get_Fsinit(self.V, self.bc)
+            Fs_init = self.get_Fsinit(self.V, self.bc, solve_modes)
 
             norm_Fs = np.ones(self.num_pgd_var)
             for i in range(self.num_pgd_var):
@@ -246,53 +268,45 @@ class PGDProblem1:
             self.logger.debug('update PGD_func: old lenght: %s', len(self.PGD_func[0]))
 
             # normalization and adding new modes
-            test_case = 'no'
+            test_case = 'new'
             if test_case.lower()=='no':
                 # no normalization at all
-                normPGD = 1
                 for dim in range(self.num_pgd_var):
                     self.PGD_func[dim].append(Fs[dim])
-                    normPGD = normPGD * dolfin.norm(Fs[dim])
                 normU = np.prod(norm_Fs)
+                self.alpha.append(1.0) # no normalization
 
-            elif test_case.lower()=='n2':
-                # normalized modes separately l2 norm
-                normPGD = 1
-                Fs_normalized = np.copy(Fs)  # normalized via l2 norm
-                for dim in range(self.num_pgd_var):
-                    tmp = dolfin.Function(self.V[dim])
-                    # norm_inv = np.copy(1.0 / norm_Fs[dim])
-                    norm_inv = 1/(norm_Fs[dim]/ (np.prod(norm_Fs) ** (1. / self.num_pgd_var)))
-                    tmp.vector().axpy(norm_inv, Fs_normalized[dim].vector())
-                    Fs_normalized[dim]=tmp
-                    self.PGD_func[dim].append(Fs_normalized[dim])
-                normU = np.prod(norm_Fs)
-
-            elif test_case.lower()=='n3':
+            elif test_case.lower()=='new':
                 ##### new regarding chady matlab code
+                print('before l2 norm')
+                print('R[0]', Fs[0].compute_vertex_values()[:], norm_Fs[0])
                 Fs_normalized = np.copy(Fs) # normalized via l2 norm
                 for dim in range(self.num_pgd_var):
-                    tmp = dolfin.Function(self.V[dim])
-                    norm_inv = np.copy(1.0/norm_Fs[dim])
-                    tmp.vector().axpy(norm_inv, Fs_normalized[dim].vector())
-                    Fs_normalized[dim] = tmp
+                    Fs_normalized[dim].vector()[:] *= 1/norm_Fs[dim]
+                    print('normalized R', Fs_normalized[dim].compute_vertex_values()[:])
 
                 # second normalization (assemble left hand side for last problem with new modes)
                 fct_F = Fs_normalized[-1]
                 var_F = Fs_normalized[-1]
                 # define DGL
-                a = self.lhs_fct(fct_F, var_F, Fs_normalized, self.meshes, self.dom, self.param, self.prob[-1], self.num_pgd_var)
-                norm_aux = dolfin.assemble(a)
+                a = self.lhs_fct(fct_F, var_F, Fs_normalized, self.meshes, self.dom, self.param, self.prob[-1],
+                                 self.num_pgd_var)
+                if solve_modes != None:
+                    if solve_modes[-1] == self.solve_mode["FD"]:
+                        norm_aux = var_F.vector()[:].transpose() @ a @ fct_F.vector()[:] # a== matrix
+                else:
+                    norm_aux = dolfin.assemble(a) # a== form
                 norm_fac = np.sqrt(np.absolute(norm_aux))**(1./self.num_pgd_var)
+                print('norm_aux', norm_aux)
+                print('check', np.prod(norm_Fs)*norm_fac**self.num_pgd_var)
 
-                normPGD = 1
                 for dim in range(self.num_pgd_var):
-                    tmp = dolfin.Function(self.V[dim])
-                    fac_inv = 1. / norm_fac
-                    tmp.vector().axpy(fac_inv, Fs_normalized[dim].vector())
-                    self.PGD_func[dim].append(tmp)
-                    normPGD = normPGD * dolfin.norm(tmp)
-                    # add new terms
+                    Fs_normalized[dim].vector()[:] *= 1 / norm_fac
+                    print('added mode', Fs_normalized[dim].compute_vertex_values()[:])
+                    self.PGD_func[dim].append(Fs_normalized[dim])
+
+                self.alpha.append(np.prod(norm_Fs)*norm_fac**self.num_pgd_var) # joined norm
+                print(self.alpha)
                 normU = np.prod(norm_Fs)
                 ##### new
 
@@ -303,7 +317,6 @@ class PGDProblem1:
                 ### old version
                 # computed weighting factors
                 normU = 1.0
-                normPGD = 1.0
                 norm_all = np.prod(norm_Fs) ** (1. / self.num_pgd_var)  # in paper version
                 fac_Fs = np.zeros(self.num_pgd_var)
                 for dim in range(self.num_pgd_var):
@@ -318,20 +331,16 @@ class PGDProblem1:
                     tmp.vector().axpy(fac_Fs[dim], Fs[dim].vector()) # tmp.vector().axpy(1./fac_Fs[dim], Fs[dim].vector()) ??
                     # print("newPGD"+str(dim)+" ", tmp.compute_vertex_values())
                     self.PGD_func[dim].append(tmp)
-                    normPGD = normPGD * dolfin.norm(tmp)  # classical L2 norm with weighting of pgd modes
                 ### old version
 
             self.logger.debug('update PGD_func: new lenght: %s', len(self.PGD_func[0]))
-
+            input('end enrichment step')
 
             # compute norms and convergence criteria
             normConv.append(normU)
-            normConv2.append(normPGD)
             relConv.append(normU / normConv[0])  # relative criterium start with 1.0
-            relConv2.append(normPGD / normConv2[0])
 
             self.logger.info("PGD modes updated: normU=%s; relNorm=%s; tol=%s", normU, relConv[n_enr], self.PGD_tol)
-            self.logger.info("PGD modes: normPGD=%s relConv2=%s", normPGD, relConv2[n_enr])
             # input('end enrichment loop')
             # check convergence prod_i(||F^(n_enr)_i||) (similar to an displacement criterium)
             # if (normU < 1e-26):
@@ -339,7 +348,6 @@ class PGDProblem1:
                 msg = "Convergence reached (normU = %s relative %s), enriched basis number %s"
                 self.logger.info(msg % (normU, relConv[n_enr], n_enr))
                 self.logger.info("Convergence norms: %s; %s" % (normConv, relConv))
-                self.logger.info("Convergence norms 2: %s; %s" % (normConv2, relConv2))
                 break
             elif n_enr == self.PGD_nmax:
                 self.logger.error(
@@ -348,7 +356,7 @@ class PGDProblem1:
                 raise ValueError("Convergence not reached BUT Nmax reached!!")
 
         # save result in class instance
-        self.amplitude = relConv #[relConv, relConv2]
+        self.amplitude = relConv
         self.PGD_modes = len(self.PGD_func[0])
 
         return self
@@ -391,6 +399,7 @@ class PGDProblem1:
                 var_F = dolfin.TestFunction(self.V[dim])
 
                 # define DGL
+                self.param["alpha"]=self.alpha #alphas for rhs!!
                 a = self.lhs_fct(fct_F, var_F, Fs, self.meshes, self.dom, self.param, self.prob[dim], dim)
                 l = self.rhs_fct(fct_F, var_F, Fs, self.meshes, self.dom, self.param, self.load, self.PGD_func,
                                  self.prob[dim], n_enr, dim)
@@ -488,6 +497,8 @@ class PGDProblem1:
                     else:
                         self.logger.error("ERROR: solver %s doesn't exist", solve_modes[dim])
 
+                print(f'dim {dim} Fs neu {fct_F.compute_vertex_values()[:]}')
+
                 self.logger.debug("problem %s: F_%s_max: %s", self.prob[dim], str(dim),
                                   np.absolute(fct_F.vector()[:]).max())
                 self.logger.debug("problem %s: Finit_%s: %s =? %s", self.prob[dim], str(dim),
@@ -497,7 +508,11 @@ class PGDProblem1:
 
                 # compute norm and delta
                 Fs[dim] = fct_F
-                norm_Fs[dim] = dolfin.norm(Fs[dim])  # classical L2 norm
+                if solve_modes != None:
+                    if solve_modes[dim] == self.solve_mode["FD"]:
+                        norm_Fs[dim] = np.sqrt(Fs[dim].vector()[:].transpose() @ self.MM[dim] @ Fs[dim].vector()[:]) # use FD mass matrix
+                else:
+                    norm_Fs[dim] = dolfin.norm(Fs[dim])  # classical FEM L2 norm
 
                 self.logger.debug("norm for %s : %s", self.prob[dim], norm_Fs[dim])
 
@@ -566,9 +581,17 @@ class PGDProblem1:
                 newnew, newold, oldold = 1, 1, 1
 
                 for d in range(self.num_pgd_var):
-                    newnew *= dolfin.norm(Fs[d])**2 # same as dolfin.assemble(Fs[d]*Fs[d]* dolfin.dx(self.meshes[d]))
-                    newold *= dolfin.assemble(dolfin.inner(Fs[d],Fs_init[d]) * dolfin.dx(self.meshes[d]))
-                    oldold *= dolfin.norm(Fs_init[d])**2
+                    if solve_modes[d] == 'FD':
+                        # use given mass matrices for norms
+                        newnew *= Fs[d].vector()[:].transpose() @ self.MM[d] @ Fs[d].vector()[:]
+                        newold *= Fs[d].vector()[:].transpose() @ self.MM[d] @ Fs_init[d].vector()[:]
+                        oldold *= Fs_init[d].vector()[:].transpose() @ self.MM[d] @ Fs_init[d].vector()[:]
+                    else:
+                        # use fencis assemble/norm
+                        newnew *= dolfin.norm(Fs[d])**2 # same as dolfin.assemble(Fs[d]*Fs[d]* dolfin.dx(self.meshes[d]))
+                        newold *= dolfin.assemble(dolfin.inner(Fs[d],Fs_init[d]) * dolfin.dx(self.meshes[d]))
+                        oldold *= dolfin.norm(Fs_init[d])**2
+                print('error computation',newnew, oldold, newold)
                 max_error = np.sqrt(np.absolute(newnew+oldold-2*newold))
                 print('max_error', max_error)
 
@@ -592,6 +615,8 @@ class PGDProblem1:
                 self.logger.error('stopping criterion not defined %s (self.stop_fp = "delta" or "norm")', self.stop_fp)
                 raise ValueError('stopping criterion not defined %s (self.stop_fp = "delta" or "norm")')
 
+            input('end FP iteraition')
+
         return Fs, norm_Fs
 
     def return_PGD(self):
@@ -605,6 +630,11 @@ class PGDProblem1:
             num_elemt[idx] = self.meshes[idx].num_cells()
         self.logger.info('Current mesh: %s ', num_elemt)
 
+        # before saving multiply first dimension modes with joined norm alpha
+        print('PGD modes',self.PGD_modes)
+        print('alpha',self.alpha)
+        for i in range(self.PGD_modes):
+            self.PGD_func[0][i].vector()[:] *= self.alpha[i]
         solution = PGD(name=self.name, n_modes=self.PGD_modes, fmeshes=self.meshes, pgd_modes=self.PGD_func,
                             name_coord=self.name_coord, modes_info=self.modes_info, verbose=False )
         solution.problem = self
@@ -642,6 +672,8 @@ class PGDProblem1:
         fct_F = dolfin.Function(self.V[dim])
 
         # Solve the equation
+        print('system')
+        print('A, B', A, B)
         vec = np.linalg.solve(A,B)
 
         # Set the DOFs to the solution
