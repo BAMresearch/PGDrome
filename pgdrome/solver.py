@@ -287,6 +287,7 @@ class PGDProblem1:
                              self.prob[dim], n_enr, dim) # gives directly vector
                 res.append(ll.transpose() @ ll)
             res_error = np.sqrt(np.sum(res))
+            self.simulation_info += f'-- residuum norm: {res_error} --\n'
             if res_error < 1e-10:
                 msg = "Residuum error %s smaller 1e-10 in enrichment step number %s\n STOPP"
                 self.logger.info(msg % (res_error, n_enr))

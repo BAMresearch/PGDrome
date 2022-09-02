@@ -1,12 +1,18 @@
 '''
-    compare pgdrome module with matlab code from Ghnatios
-    "attempt_1_x_y_q_u0.m"
+    2D Laplace problem with given source term
+    PGD variables: space: x, y, source amplitude q, bc value u0
 
-    problem:    k(\partial^2 T/\partial x^2 + \partial^2 T/\partial y²) + Q = 0
+    problem:   strong form -k(\partial^2 T/\partial x^2 + \partial^2 T/\partial y²) = Q
+               weak form: \int partial T^*/\partial x  k \partial T/\partial x + partial T^*/\partial y k \partial T/\partial y) dV = \int T^* Q dV
+
                 T(x_0) = (1-1/3x) u0 for x_0 in [0, lX]
                 Q(x,y,q,u0) = (1 if x<L/2 \\ 0 if x>L/2) * q
 
     PGD approach: T=sum F(x)F(y)F(q)F(u0)
+
+    Reason:
+    compare pgdrome module with matlab code from Ghnatios
+    "attempt_1_x_y_q_u0.m"
 
 '''
 
@@ -372,7 +378,6 @@ def problem_assemble_rhs_FD(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,di
 def create_PGD(param=[], vs=[], _type=None):
 
         #define nonhomgeneous BC
-        # param['BC_x'] = df.interpolate(df.Expression('x[0]<0+1e-8 ? 1.0-1.0/3.0*x[0] : (x[0]>L-1e-8 ? 1.0-1.0/3.0*x[0] : 0)',degree=1, L=param['lx']),vs[0])#FALSCH!!!
         param['BC_x'] = df.interpolate(df.Expression('1.0-1.0/3.0*x[0]',degree=1),vs[0])
         param['BC_y'] = df.interpolate(df.Expression('1.0',degree=1),vs[1])
         param['BC_q'] = df.interpolate(df.Expression('1.0',degree=1),vs[2])
@@ -422,7 +427,7 @@ def create_PGD(param=[], vs=[], _type=None):
                                Vs=vs, dom=0, bc_fct=create_bc, load=[qx, qy, qq, qu0],
                                param=param, rhs_fct=ass_rhs,
                                lhs_fct=ass_lhs, probs=['r', 's', 't', 'u'],
-                               seq_fp=np.arange(len(vs)), PGD_nmax=2)
+                               seq_fp=np.arange(len(vs)), PGD_nmax=7)
         if _type == 'FD':
             pgd_prob.MM = [param['M_x'], param['M_y'], param['M_q'], param['M_u']] # for norms!
         pgd_prob.stop_fp = 'norm'
@@ -505,14 +510,14 @@ class problem(unittest.TestCase):
                        [0., 50.], #qmin, qmax
                        [10., 50.]] #u0min, u0max
         self.ord = [1, 1, 1, 1] # order of each variable (for FEM use the first one)
-        #self.elem = [60,40,200,80] # number of elements for each variable
-        self.elem = [5, 5, 10, 10]  # number of elements for each variable
+        self.elem = [60,40,200,80] # number of elements for each variable
+        #self.elem = [5, 5, 10, 10]  # number of elements for each variable
 
         self.fixed_dim = 0
         self.values = [1.5, 50, 10] # test evaluation[y,q,u0]
 
-        self.plotting = True
-        # self.plotting = False
+        # self.plotting = True
+        self.plotting = False
 
 
     def TearDown(self):
@@ -528,6 +533,9 @@ class problem(unittest.TestCase):
         # PGD FD
         pgd_fd, param = create_PGD(param=self.param,vs=vs,_type="FD")
 
+        print('Number of Modes',pgd_fem.numModes, pgd_fd.numModes) # should be converged in 1 mode set!!
+        self.assertTrue(pgd_fem.numModes == 1)
+        self.assertTrue(pgd_fd.numModes == 1)
 
         if self.plotting:
             #### plotting optional
