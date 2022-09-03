@@ -252,8 +252,10 @@ def create_PGD(param=[], vs=[], q=None, _type=None):
 
     # define heat source in x, t and q
     q_x = dolfin.interpolate(q, vs[0])
-    q_t = dolfin.interpolate(dolfin.Expression('1.0', degree=4),vs[1])
-    q_q = dolfin.interpolate(dolfin.Expression('x[0]*Q', Q=param['Q'], degree=4), vs[2])
+    q_t = dolfin.interpolate(dolfin.Expression('1.0', degree=1),vs[1])
+    q_q = dolfin.interpolate(dolfin.Expression('x[0]*Q', Q=param['Q'], degree=1), vs[2])
+    # print('q_x',q_x.compute_vertex_values()[:])
+    # input()
 
     if _type == 'FEM':
         ass_rhs = problem_assemble_rhs_FEM
@@ -291,6 +293,8 @@ def create_PGD(param=[], vs=[], q=None, _type=None):
     pgd_prob.tol_fp_it = 1e-5 #1e-5
     # pgd_prob.fp_init = 'randomized'
     pgd_prob.norm_modes = 'stiff'
+    pgd_prob.PGD_tol = 1e-9 #as stopping criterion
+
 
     pgd_prob.solve_PGD(_problem='linear', solve_modes=solve_modes)
 
@@ -367,24 +371,27 @@ class problem(unittest.TestCase):
     def setUp(self):
         
         # global parameters
-        self.param = {"rho": 1, "cp": 1, "k": 0.01, 'Tamb':25, 'Q': 10, 'af':0.2, 'ar':0.2, 'xc':0.5}
-        self.param['k'],self.param['Q'] = 0.5, 1.
+        #self.param = {"rho": 1, "cp": 1, "k": 0.5, 'Tamb':25, 'Q': 1, 'af':0.2, 'ar':0.2, 'xc':0.5, 'lx':1, 'lt':1} #-comparable matlab code proofed (coarse mesh)
 
-        # possiblity to make the equation dimless
+        #self.param = {"rho": 7100, "cp": 3100, "k": 100, 'Q': 5000, 'Tamb': 25, 'af': 0.02, 'ar': 0.02, 'xc': 0.05,
+        #              'lx': 0.1, 'lt': 10} #geht noch feineres mesh nötig
+        self.param = {"rho": 7100, "cp": 3100, "k": 100, 'Q': 100, 'Tamb':25, 'af':0.002, 'ar':0.002, 'xc':0.05, 'lx':0.1, 'lt':10}
+
+         # possiblity to make the equation dimless
         self.factors_o = {'x_0': 1, 't_0': 1., 'T_0': 1}
-        self.ranges = [[0., 1. / self.factors_o['x_0']],  # xmin, xmax
-                       [0., 1. / self.factors_o['t_0']],  # tmin, tmax
+        self.ranges = [[0., self.param['lx'] / self.factors_o['x_0']],  # xmin, xmax
+                       [0., self.param['lt'] / self.factors_o['t_0']],  # tmin, tmax
                        [0.5, 1.0]]  # qmin, qmax
 
         self.ords = [1, 1, 1]  # x, t, q
-        self.elems = [15, 10, 10]
-        # self.elems = [50, 100, 10]
+        #self.elems = [15, 10, 10]
+        self.elems = [500, 100, 10]
 
         # evaluation parameters
         self.fixed_dim = 0
-        self.t_fixed = 0.9  # test evaluation[t,q]
+        self.t_fixed = 0.9*self.param['lt'] #0.9  # test evaluation[t,q]
         self.q_fixed = 1.
-        self.x_fixed = 0.5
+        self.x_fixed = 0.5*self.param['lx'] #0.5
 
         self.plotting = True
         # self.plotting = False
@@ -394,8 +401,15 @@ class problem(unittest.TestCase):
     
     def test_heating(self):
         # #case heating
-        self.q = dolfin.Expression('6*sqrt(3) / ((af+ar)*af*af*pow(pi,3/2)) * exp(-3*(pow(x[0]-xc,2)/pow(af,2)))', \
-                                   degree=4,af=self.param['af'],ar=self.param['ar'],xc=self.param['xc']) # expression for q(x) independent from time
+        ff = 6*np.sqrt(3) / ((self.param["af"]+self.param["ar"])*self.param["af"]*self.param["af"]*np.pi**(3/2))
+        print("ff",ff)
+        self.q = dolfin.Expression('ff* exp(-3*(pow(x[0]-xc,2)/pow(af,2)))', \
+                                   degree=4,ff=ff,af=self.param['af'],ar=self.param['ar'],xc=self.param['xc']) # expression for q(x) independent from time
+
+        #self.q = dolfin.Expression('6 * sqrt(3) / ((af + ar) * af * af * pow(pi, 3 / 2)) * exp(-3*(pow(x[0]-xc,2)/pow(af,2)))', \
+        #                           degree=1, af=self.param['af'], ar=self.param['ar'],
+        #                           xc=self.param['xc'])  # expression for q(x) independent from time
+
         self.param['Tamb_fct'] = dolfin.Expression('Tamb', degree=1, Tamb=self.param["Tamb"]) #initial condition FEM
         self.param['IC_t'] = self.param['Tamb_fct']
         # self.param['IC_t'] = dolfin.Expression('Tamb*(1-1/1*x[0])', degree=1, Tamb=param["Tamb"])
@@ -418,21 +432,22 @@ class problem(unittest.TestCase):
             tidx = np.where(meshes[1].coordinates()[:]==self.t_fixed)[0][0]
             u_fem, u_fem2 = Reference(param=self.param, vs=vs, q=self.q, x_fixed=self.x_fixed)([self.ranges[1][1],self.q_fixed])
 
-            upgd_fem = pgd_fem.evaluate(self.fixed_dim, [1, 2], [self.t_fixed,self.q_fixed], 0)
-            upgd_fem_bc = upgd_fem.compute_vertex_values()[:] + \
-                          param['IC_x'].compute_vertex_values()[:] * param['IC_t'](self.t_fixed) * param["IC_q"](
-                self.q_fixed)
+            #upgd_fem = pgd_fem.evaluate(self.fixed_dim, [1, 2], [self.t_fixed,self.q_fixed], 0)
+            #upgd_fem_bc = upgd_fem.compute_vertex_values()[:] + \
+            #              param['IC_x'].compute_vertex_values()[:] * param['IC_t'](self.t_fixed) * param["IC_q"](
+            #    self.q_fixed)
 
             upgd_fd = pgd_fd.evaluate(self.fixed_dim, [1, 2], [self.t_fixed,self.q_fixed], 0)
             upgd_fd_bc = upgd_fd.compute_vertex_values()[:] + \
                           param['IC_x'].compute_vertex_values()[:] * param['IC_t'](self.t_fixed) * param["IC_q"](
                 self.q_fixed)
+            print('upgd_fd', upgd_fd_bc)
 
             # Temperature over space at specific time
             plt.figure(1)
             plt.plot(meshes[0].coordinates()[:], u_fem[tidx].compute_vertex_values()[:], '-or', label=f'FEM')
-            plt.plot(upgd_fem.function_space().mesh().coordinates()[:], upgd_fem_bc, '-*b',
-                     label=f"PGD FEM t end")
+            #plt.plot(upgd_fem.function_space().mesh().coordinates()[:], upgd_fem_bc, '-*b',
+            #         label=f"PGD FEM t end")
             plt.plot(upgd_fd.function_space().mesh().coordinates()[:], upgd_fd_bc, '-*g',
                      label=f"PGD FDtime t end")
             plt.title(f"PGD solution over space")
@@ -441,17 +456,17 @@ class problem(unittest.TestCase):
             plt.legend()
 
             # solution at fixed place over time
-            upgd_fem2 = pgd_fem.evaluate(1, [0, 2], [self.x_fixed,self.q_fixed], 0)
-            upgd_fem2_bc = upgd_fem2.compute_vertex_values()[:] + \
-                          param['IC_x'](self.x_fixed) * param['IC_t'].compute_vertex_values()[:] * param["IC_q"](
-                self.q_fixed)
+            #upgd_fem2 = pgd_fem.evaluate(1, [0, 2], [self.x_fixed,self.q_fixed], 0)
+            #upgd_fem2_bc = upgd_fem2.compute_vertex_values()[:] + \
+            #              param['IC_x'](self.x_fixed) * param['IC_t'].compute_vertex_values()[:] * param["IC_q"](
+            #    self.q_fixed)
             upgd_fd2 = pgd_fd.evaluate(1, [0, 2], [self.x_fixed, self.q_fixed], 0)
             upgd_fd2_bc = upgd_fd2.compute_vertex_values()[:] + \
                            param['IC_x'](self.x_fixed) * param['IC_t'].compute_vertex_values()[:] * param["IC_q"](
                 self.q_fixed)
             plt.figure(2)
             plt.plot(meshes[1].coordinates()[:], u_fem2, '-or', label='FEM')
-            plt.plot(meshes[1].coordinates()[:], upgd_fem2_bc, '-*b', label='PGD FEM')
+            #plt.plot(meshes[1].coordinates()[:], upgd_fem2_bc, '-*b', label='PGD FEM')
             plt.plot(meshes[1].coordinates()[:], upgd_fd2_bc, '-*g', label='PGD FD')
             plt.title(f"PGD solution at [x,q]={self.x_fixed},{self.q_fixed} over time")
             plt.xlabel("time t [m]")
@@ -464,11 +479,14 @@ class problem(unittest.TestCase):
     # def test_cooling(self):
     #     # case cooling!
     #     self.q = dolfin.Expression('0', degree=1)
+    #     vf_a = 6*np.sqrt(3) / (2*self.param['af']**3*np.pi**(3/2))
     #     self.param['Tamb_fct'] = dolfin.Expression(
-    #         'AA*6*sqrt(3) / (2*pow(a,3)*pow(pi,3/2)) * exp(-3*(pow(x[0]-xc,2)/pow(a,2)))',
-    #         degree=4, AA=self.q_fixed, a=self.param['af'], xc=self.param['xc'])  # initial condition fem
+    #         'vf* exp(-3*(pow(x[0]-xc,2)/pow(a,2)))',
+    #         degree=4, vf=self.q_fixed*vf_a, a=self.param['af'], xc=self.param['xc'])  # initial condition fem
     #     self.param['IC_t'] = dolfin.Expression('1.0', degree=1)
-    #     self.param['IC_x'] = self.param["Tamb_fct"]
+    #     self.param['IC_x'] = dolfin.Expression(
+    #             'vf* exp(-3*(pow(x[0]-xc,2)/pow(a,2)))',
+    #             degree=4, vf=vf_a, a=self.param['af'], xc=self.param['xc'])
     #     self.param['IC_q'] = dolfin.Expression('x[0]', degree=1)
     #
     #     # MESH
