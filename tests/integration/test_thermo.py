@@ -4,6 +4,8 @@
     returning PGDModel (as forward model) or PGD instance
 '''
 
+#TODO: Check with new heat1D example and delete!!
+
 import unittest
 import dolfin
 import fenics
