@@ -359,8 +359,6 @@ class Reference():
             Ttmp.vector()[:]=1*T.vector()[:]
             Ttime.append(Ttmp)
             Txfixed.append(np.copy(T(self.fixed_x)))
-            if self.time_mesh[i+1] == values[0]:
-                break
             
         return Ttime, Txfixed # solution in time over x and time solution at fixed x
 
