@@ -1,6 +1,6 @@
 '''
     1D PGD example (heat equation with a moving goldak heat source) with three PGD variables (space, time and heat input)
-    solving PGD problem in standard way using FD in time and FEM else
+    solving PGD problemin standard way and using FD for non space and FEM for space
     returning PGDModel (as forward model) or PGD instance
 
 '''
@@ -233,9 +233,9 @@ def problem_assemble_lhs_FD(fct_F,var_F,Fs,meshes,dom,param,typ,dim):
     a = 0
     if typ == 's':
         for i in range(3):
-            alpha_t1 = (Fs[1].vector()[:] * Bt[i][0][1].vector()[:] * det_J[i].vector()[:]).transpose() @ param['M_t'] @ Fs[1].vector()[:]
-            alpha_t2 = (Fs[1].vector()[:] * Bt[i][1]).transpose() @ param['D1_up_t'] @ Fs[1].vector()[:] 
-            alpha_t3 = (Fs[1].vector()[:] * det_J[i].vector()[:] * Bx[i].vector()[:] * Bx[i].vector()[:]).transpose() @ param['M_t'] @ Fs[1].vector()[:]
+            alpha_t1 = (Fs[1].vector()[:] * Bt[i][0][1].vector()[:] * det_J[i].vector()[:]).transpose() @ param['M_r'] @ Fs[1].vector()[:]
+            alpha_t2 = (Fs[1].vector()[:] * Bt[i][1]).transpose() @ param['D1_up_r'] @ Fs[1].vector()[:] 
+            alpha_t3 = (Fs[1].vector()[:] * det_J[i].vector()[:] * Bx[i].vector()[:] * Bx[i].vector()[:]).transpose() @ param['M_r'] @ Fs[1].vector()[:]
                         
             a +=  dolfin.Constant(alpha_t1 \
                 * alpha_eta1) \
@@ -251,13 +251,13 @@ def problem_assemble_lhs_FD(fct_F,var_F,Fs,meshes,dom,param,typ,dim):
         for i in range(3): 
             a +=  dolfin.assemble(Fs[0] * Bt[i][0][0] * Fs[0].dx(0) * dx_s(i)) \
                 * alpha_eta1 \
-                * param["rho"] * param["c_p"] * Bt[i][0][1].vector()[:] * det_J[i].vector()[:] * param['M_t'] \
+                * param["rho"] * param["c_p"] * Bt[i][0][1].vector()[:] * det_J[i].vector()[:] * param['M_r'] \
                 + dolfin.assemble(Fs[0] * Fs[0] * dx_s(i)) \
                 * alpha_eta1 \
-                * param["rho"] * param["c_p"] * Bt[i][1] * param['D1_up_t'] \
+                * param["rho"] * param["c_p"] * Bt[i][1] * param['D1_up_r'] \
                 + dolfin.assemble(Fs[0].dx(0) * Fs[0].dx(0) * dx_s(i)) \
                 * alpha_eta1 \
-                * param["k"] * Bx[i].vector()[:] * Bx[i].vector()[:] * det_J[i].vector()[:] * param['M_t']
+                * param["k"] * Bx[i].vector()[:] * Bx[i].vector()[:] * det_J[i].vector()[:] * param['M_r']
         
         # add initial condition
         a[:,param['bc_idx']] = 0
@@ -266,9 +266,9 @@ def problem_assemble_lhs_FD(fct_F,var_F,Fs,meshes,dom,param,typ,dim):
                 
     if typ == 'eta':
         for i in range(3):
-            alpha_t1 = (Fs[1].vector()[:] * Bt[i][0][1].vector()[:] * det_J[i].vector()[:]).transpose() @ param['M_t'] @ Fs[1].vector()[:]
-            alpha_t2 = (Fs[1].vector()[:] * Bt[i][1]).transpose() @ param['D1_up_t'] @ Fs[1].vector()[:]
-            alpha_t3 = (Fs[1].vector()[:] * det_J[i].vector()[:] * Bx[i].vector()[:] * Bx[i].vector()[:]).transpose() @ param['M_t'] @ Fs[1].vector()[:]
+            alpha_t1 = (Fs[1].vector()[:] * Bt[i][0][1].vector()[:] * det_J[i].vector()[:]).transpose() @ param['M_r'] @ Fs[1].vector()[:]
+            alpha_t2 = (Fs[1].vector()[:] * Bt[i][1]).transpose() @ param['D1_up_r'] @ Fs[1].vector()[:]
+            alpha_t3 = (Fs[1].vector()[:] * det_J[i].vector()[:] * Bx[i].vector()[:] * Bx[i].vector()[:]).transpose() @ param['M_r'] @ Fs[1].vector()[:]
             
             a +=  dolfin.assemble(Fs[0] * Bt[i][0][0] * Fs[0].dx(0) * dx_s(i)) \
                 * alpha_t1 \
@@ -293,7 +293,7 @@ def problem_assemble_rhs_FD(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,di
     det_J = param["det_J"]
     IC = [param["IC_s"], param["IC_r"], param["IC_eta"]]
 
-    beta_t1 = (Fs[1].vector()[:] * det_J[1].vector()[:]).transpose() @ param['M_t'] @ Q[1].vector()[:]
+    beta_t1 = (Fs[1].vector()[:] * det_J[1].vector()[:]).transpose() @ param['M_r'] @ Q[1].vector()[:]
     beta_eta1 = Fs[2].vector()[:].transpose() @ param['M_eta'] @ Q[2].vector()[:]
     alpha_eta1 = Fs[2].vector()[:].transpose() @ param['M_eta'] @ IC[2].vector()[:]
     
@@ -303,9 +303,9 @@ def problem_assemble_rhs_FD(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,di
             * beta_eta1) \
             * var_F * Q[0] * dx_s(1)
         for i in range(0,3):
-            alpha_t1 = (Fs[1].vector()[:] * Bt[i][0][1].vector()[:] * det_J[i].vector()[:]).transpose() @ param['M_t'] @ IC[1].vector()[:]
-            alpha_t2 = (Fs[1].vector()[:] * Bt[i][1]).transpose() @ param['D1_up_t'] @ IC[1].vector()[:]
-            alpha_t3 = (Fs[1].vector()[:] * det_J[i].vector()[:] * Bx[i].vector()[:] * Bx[i].vector()[:]).transpose() @ param['M_t'] @ IC[1].vector()[:]
+            alpha_t1 = (Fs[1].vector()[:] * Bt[i][0][1].vector()[:] * det_J[i].vector()[:]).transpose() @ param['M_r'] @ IC[1].vector()[:]
+            alpha_t2 = (Fs[1].vector()[:] * Bt[i][1]).transpose() @ param['D1_up_r'] @ IC[1].vector()[:]
+            alpha_t3 = (Fs[1].vector()[:] * det_J[i].vector()[:] * Bx[i].vector()[:] * Bx[i].vector()[:]).transpose() @ param['M_r'] @ IC[1].vector()[:]
                 
             l +=- dolfin.Constant(alpha_t1 \
                 * alpha_eta1) \
@@ -320,9 +320,9 @@ def problem_assemble_rhs_FD(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,di
             for old in range(nE):
                 alpha_eta2 = Fs[2].vector()[:].transpose() @ param['M_eta'] @ PGD_func[2][old].vector()[:]
                 for j in range(0,3):
-                    alpha_old_t1 = (Fs[1].vector()[:] * Bt[j][0][1].vector()[:] * det_J[j].vector()[:]).transpose() @ param['M_t'] @ PGD_func[1][old].vector()[:]
-                    alpha_old_t2 = (Fs[1].vector()[:] * Bt[j][1]).transpose() @ param['D1_up_t'] @ PGD_func[1][old].vector()[:]
-                    alpha_old_t3 = (Fs[1].vector()[:] * det_J[j].vector()[:] * Bx[j].vector()[:] * Bx[j].vector()[:]).transpose() @ param['M_t'] @ PGD_func[1][old].vector()[:]
+                    alpha_old_t1 = (Fs[1].vector()[:] * Bt[j][0][1].vector()[:] * det_J[j].vector()[:]).transpose() @ param['M_r'] @ PGD_func[1][old].vector()[:]
+                    alpha_old_t2 = (Fs[1].vector()[:] * Bt[j][1]).transpose() @ param['D1_up_r'] @ PGD_func[1][old].vector()[:]
+                    alpha_old_t3 = (Fs[1].vector()[:] * det_J[j].vector()[:] * Bx[j].vector()[:] * Bx[j].vector()[:]).transpose() @ param['M_r'] @ PGD_func[1][old].vector()[:]
                         
                     l +=- dolfin.Constant(alpha_old_t1 \
                         * alpha_eta2) \
@@ -337,30 +337,30 @@ def problem_assemble_rhs_FD(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,di
     if typ == 'r':
         l =   dolfin.assemble(Fs[0] * Q[0] * dx_s(1)) \
             * beta_eta1 \
-            * param['M_t'] @ Q[1].vector()[:] * det_J[1].vector()[:]
+            * param['M_r'] @ Q[1].vector()[:] * det_J[1].vector()[:]
         for i in range(0,3):
             l +=- dolfin.assemble(Fs[0] * Bt[i][0][0] * IC[0].dx(0) * dx_s(i)) \
                 * alpha_eta1 \
-                * param["rho"] * param["c_p"] * Bt[i][0][1].vector()[:] * det_J[i].vector()[:] * param['M_t'] @ IC[1].vector()[:] \
+                * param["rho"] * param["c_p"] * Bt[i][0][1].vector()[:] * det_J[i].vector()[:] * param['M_r'] @ IC[1].vector()[:] \
                 - dolfin.assemble(Fs[0] * IC[0] * dx_s(i)) \
                 * alpha_eta1 \
-                * param["rho"] * param["c_p"] * Bt[i][1] * param['D1_up_t'] @ IC[1].vector()[:] \
+                * param["rho"] * param["c_p"] * Bt[i][1] * param['D1_up_r'] @ IC[1].vector()[:] \
                 - dolfin.assemble(Fs[0].dx(0) * IC[0].dx(0) * dx_s(i)) \
                 * alpha_eta1 \
-                * param["k"] * det_J[i].vector()[:] * Bx[i].vector()[:] * Bx[i].vector()[:] * param['M_t'] @ IC[1].vector()[:]
+                * param["k"] * det_J[i].vector()[:] * Bx[i].vector()[:] * Bx[i].vector()[:] * param['M_r'] @ IC[1].vector()[:]
         if nE > 0:
             for old in range(nE):
                 alpha_eta2 = Fs[2].vector()[:].transpose() @ param['M_eta'] @ PGD_func[2][old].vector()[:]
                 for j in range(0,3):
                     l +=- dolfin.assemble(Fs[0] * Bt[j][0][0] * PGD_func[0][old].dx(0) * dx_s(j)) \
                         * alpha_eta2 \
-                        * param["rho"] * param["c_p"] * Bt[j][0][1].vector()[:] * det_J[j].vector()[:] * param['M_t'] @ PGD_func[1][old].vector()[:] \
+                        * param["rho"] * param["c_p"] * Bt[j][0][1].vector()[:] * det_J[j].vector()[:] * param['M_r'] @ PGD_func[1][old].vector()[:] \
                         - dolfin.assemble(Fs[0] * PGD_func[0][old] * dx_s(j)) \
                         * alpha_eta2 \
-                        * param["rho"] * param["c_p"] * Bt[j][1] * param['D1_up_t'] @ PGD_func[1][old].vector()[:] \
+                        * param["rho"] * param["c_p"] * Bt[j][1] * param['D1_up_r'] @ PGD_func[1][old].vector()[:] \
                         - dolfin.assemble(Fs[0].dx(0) * PGD_func[0][old].dx(0) * dx_s(j)) \
                         * alpha_eta2 \
-                        * param["k"] * det_J[j].vector()[:] * Bx[j].vector()[:] * Bx[j].vector()[:] * param['M_t'] @ PGD_func[1][old].vector()[:]
+                        * param["k"] * det_J[j].vector()[:] * Bx[j].vector()[:] * Bx[j].vector()[:] * param['M_r'] @ PGD_func[1][old].vector()[:]
                             
         # add initial condition
         l[param['bc_idx']] = 0
@@ -370,9 +370,9 @@ def problem_assemble_rhs_FD(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,di
             * beta_t1 \
             * param['M_eta'] @ Q[2].vector()[:]
         for i in range(0,3):
-            alpha_t1 = (Fs[1].vector()[:] * Bt[i][0][1].vector()[:] * det_J[i].vector()[:]).transpose() @ param['M_t'] @ IC[1].vector()[:]
-            alpha_t2 = (Fs[1].vector()[:] * Bt[i][1]).transpose() @ param['D1_up_t'] @ IC[1].vector()[:]
-            alpha_t3 = (Fs[1].vector()[:] * det_J[i].vector()[:] * Bx[i].vector()[:] * Bx[i].vector()[:]).transpose() @ param['M_t'] @ IC[1].vector()[:]
+            alpha_t1 = (Fs[1].vector()[:] * Bt[i][0][1].vector()[:] * det_J[i].vector()[:]).transpose() @ param['M_r'] @ IC[1].vector()[:]
+            alpha_t2 = (Fs[1].vector()[:] * Bt[i][1]).transpose() @ param['D1_up_r'] @ IC[1].vector()[:]
+            alpha_t3 = (Fs[1].vector()[:] * det_J[i].vector()[:] * Bx[i].vector()[:] * Bx[i].vector()[:]).transpose() @ param['M_r'] @ IC[1].vector()[:]
                 
             l +=- dolfin.assemble(Fs[0] * Bt[i][0][0] * IC[0].dx(0) * dx_s(i)) \
                 * alpha_t1 \
@@ -386,9 +386,9 @@ def problem_assemble_rhs_FD(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,di
         if nE > 0:
             for old in range(nE):
                 for j in range(0,3):
-                    alpha_old_t1 = (Fs[1].vector()[:] * Bt[j][0][1].vector()[:] * det_J[j].vector()[:]).transpose() @ param['M_t'] @ PGD_func[1][old].vector()[:]
-                    alpha_old_t2 = (Fs[1].vector()[:] * Bt[j][1]).transpose() @ param['D1_up_t'] @ PGD_func[1][old].vector()[:]
-                    alpha_old_t3 = (Fs[1].vector()[:] * det_J[j].vector()[:] * Bx[j].vector()[:] * Bx[j].vector()[:]).transpose() @ param['M_t'] @ PGD_func[1][old].vector()[:]
+                    alpha_old_t1 = (Fs[1].vector()[:] * Bt[j][0][1].vector()[:] * det_J[j].vector()[:]).transpose() @ param['M_r'] @ PGD_func[1][old].vector()[:]
+                    alpha_old_t2 = (Fs[1].vector()[:] * Bt[j][1]).transpose() @ param['D1_up_r'] @ PGD_func[1][old].vector()[:]
+                    alpha_old_t3 = (Fs[1].vector()[:] * det_J[j].vector()[:] * Bx[j].vector()[:] * Bx[j].vector()[:]).transpose() @ param['M_r'] @ PGD_func[1][old].vector()[:]
                         
                     l +=- dolfin.assemble(Fs[0] * Bt[j][0][0] * PGD_func[0][old].dx(0) * dx_s(j)) \
                         * alpha_old_t1 \
@@ -442,11 +442,11 @@ def create_PGD(param={}, vs=[], q_PGD=None, q_coeff=None, _type=None):
         
     elif _type == 'FD':
         # create FD matrices from meshes
-        t_dofs = np.array(vs[1].tabulate_dof_coordinates()[:].flatten())
-        t_sort = np.argsort(t_dofs)
-        M_t, _, D1_up_t = FD_matrices(t_dofs[t_sort])
-        param['M_t'],param['D1_up_t'] = M_t[t_sort,:][:,t_sort], D1_up_t[t_sort,:][:,t_sort]
-        param['bc_idx']=np.where(t_dofs==0)[0]
+        r_dofs = np.array(vs[1].tabulate_dof_coordinates()[:].flatten())
+        r_sort = np.argsort(r_dofs)
+        M_r, _, D1_up_r = FD_matrices(r_dofs[r_sort])
+        param['M_r'],param['D1_up_r'] = M_r[r_sort,:][:,r_sort], D1_up_r[r_sort,:][:,r_sort]
+        param['bc_idx']=np.where(r_dofs==0)[0]
         
         eta_dofs = np.array(vs[2].tabulate_dof_coordinates()[:].flatten())
         eta_sort = np.argsort(eta_dofs)
@@ -471,7 +471,7 @@ def create_PGD(param={}, vs=[], q_PGD=None, q_coeff=None, _type=None):
                            PGD_nmax=20, PGD_tol=1e-5)    
                            
     if _type == 'FD':
-        pgd_prob.MM = [0, param['M_t'], param['M_eta']]  # for norms!
+        pgd_prob.MM = [0, param['M_r'], param['M_eta']]  # for norms!
 
     pgd_prob.stop_fp = 'norm'
     pgd_prob.max_fp_it = 20
@@ -616,7 +616,7 @@ class problem(unittest.TestCase):
         pass
                           
     def test_heating(self):
-        # #case heating
+        # case heating
         self.q_coeff = 6 * np.sqrt(3) / ((self.param["af"]+self.param["af"]) * self.param["af"] * self.param["af"] * np.pi**(3/2))
         self.q_FEM = dolfin.Expression('x[0] >= vel*t+hg/2 ? 0 : x[0] <= vel*t-hg/2 ? 0 : \
                                        coeff * exp(-3*(pow(x[0]-vel*t,2)/pow(af,2)))', \
@@ -670,8 +670,6 @@ class problem(unittest.TestCase):
 
         # self.assertTrue(errors_FEM21 < 1e-2) 
         self.assertTrue(errors_FEM22 < 1e-2) 
-
-
 
 if __name__ == '__main__':
     dolfin.set_log_level(dolfin.LogLevel.ERROR)
