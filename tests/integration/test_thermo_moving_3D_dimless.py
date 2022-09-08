@@ -729,8 +729,8 @@ def create_PGD(param={}, vs=[], q_PGD=None, q_coeff=None):
     pgd_s = pgd_prob.return_PGD()  # as PGD class instance
     
     return pgd_s, param
-
-def remapping(pgd_solution, param, pos_fixed=None, eta_fixed=None):
+    # TODO von hier aufwaerts anpassen: Nutze test_heat1D_dimless
+def remapping(self, pgd_solution, param, pos_fixed=None, eta_fixed=None):
     # compute remapping of heating phase
     
     # initialize data
@@ -747,17 +747,17 @@ def remapping(pgd_solution, param, pos_fixed=None, eta_fixed=None):
         u_pgd = pgd_solution.evaluate(0, [1,2,3,4], [y_fixed,z_fixed,rr,eta_fixed], 0)
 
         # left side
-        s_temp = x_fixed / param["h_1"](rr)
+        s_temp = x_fixed * self.factors_ref['x_ref'] / param["h_1"](rr)
         if s_temp < 1:
             PGD_heating[i] = u_pgd(s_temp)
         else:
             # center
-            s_temp = (x_fixed - param["h_1"](rr)) / param["h_g"] + 1
+            s_temp = (x_fixed * self.factors_ref['x_ref'] - param["h_1"](rr)) / param["h_g"] + 1
             if s_temp <= 2:
                 PGD_heating[i] = u_pgd(s_temp)
             else:
                 # right side
-                s_temp = (x_fixed - param["h_1"](rr) - param["h_g"]) / param["h_2"](rr) + 2
+                s_temp = (x_fixed * self.factors_ref['x_ref'] - param["h_1"](rr) - param["h_g"]) / param["h_2"](rr) + 2
                 PGD_heating[i] = u_pgd(s_temp)
     
     # add initial condition to heating phase
@@ -789,13 +789,18 @@ class Reference():
         v = dolfin.TestFunction(self.vs[0])
         self.dt = dolfin.Constant(1.)
         self.Q = dolfin.Constant(1.)
-        self.F = self.param["rho"] * self.param["c_p"] * T * v * dolfin.dx() \
-            + self.dt * self.param["k"] * dolfin.dot(dolfin.grad(T), dolfin.grad(v)) * dolfin.dx() \
-            - (self.dt * self.Q * self.q + self.param["rho"] * self.param["c_p"] * self.T_n) * v * dolfin.dx()
+        self.F = self.param['a1_t'] * self.param["rho"] * self.param["c_p"] * T * v * dolfin.dx() \
+            + self.dt * self.param["k"] * dolfin.dot(self.gradient(T), dolfin.grad(v)) * dolfin.dx() \
+            - (self.dt * self.param['l1'] * self.Q * self.q + self.param['a1_t'] * self.param["rho"] * self.param["c_p"] * self.T_n) * v * dolfin.dx()
         self.a, self.L = dolfin.lhs(self.F), dolfin.rhs(self.F)
 
         self.pos_fixed = (pos_fixed[0], pos_fixed[1], pos_fixed[2])
         
+    def gradient(self, u):
+        return dolfin.as_vector((dolfin.Dx(u, 0) / self.factors_ref['x_ref']**2, \
+                                 dolfin.Dx(u, 1) / self.factors_ref['y_ref']**2, \
+                                 dolfin.Dx(u, 2) / self.factors_ref['z_ref']**2))
+    
     def __call__(self, values):
 
         # check time mesh for requested time value
@@ -841,37 +846,49 @@ class problem(unittest.TestCase):
         
         # define some parameters
         self.param = {"rho": 7100, "c_p": 3100, "k": 100, "r_0": 0.0035, "vel": 0.01, "L": 0.1, "W": 0.1, "H": 0.01, \
-                      "af": 0.002, "b": 0.002, "c": 0.002, "T_amb": 25, "P": 1000, "t_max": 10}
+                      "af": 0.002, "b": 0.002, "c": 0.002, "T_amb": 25, "P": 2500, "t_max": 10}
         self.param.update({"h_g": self.param["af"]*3})
         self.param.update({"h_y": self.param["b"]*3})
         self.param.update({"h_z": self.param["c"]*3})
         
+        self.factors_ref = {'x_ref': self.param['L'], 'y_ref': self.param['W'], 'z_ref': self.param['H'], \
+                            't_ref': self.param['t_max']-self.param["r_0"]/self.param["vel"], \
+                            'r_ref': self.param["vel"]*self.param["t_max"]-self.param["r_0"], 'T_ref': 500}
+        self.param['a1_t']=self.factors_ref['T_ref']/self.factors_ref['t_ref']
+        self.param['a1_r']=self.factors_ref['T_ref']/self.factors_ref['r_ref']
+        self.param['a2']=self.factors_ref['T_ref']/self.factors_ref['x_ref']**2
+        self.param['l1']=1.0
+        
         # global parameters
         self.ord = 1  # order for each mesh
         self.ords = [self.ord, self.ord, self.ord, self.ord, self.ord]
-        self.ranges_PGD = [[0., 3.],                                                                        # smin, smax
-                           [0., self.param["W"]],                                                           # ymin, ymax
-                           [0., self.param["H"]],                                                           # zmin, zmax
-                           [self.param["r_0"], self.param["vel"]*self.param["t_max"]-self.param["r_0"]],    # rmin, rmax
-                           [0.5, 1.]]                                                                       # etamin, etamax   
-        self.ranges_FEM = [[0., self.param["L"]],                                                                           # xmin, xmax
-                           [0., self.param["W"]],                                                                           # ymin, ymax
-                           [0., self.param["H"]],                                                                           # zmin, zmax
-                           [self.param["r_0"]/self.param["vel"], self.param["t_max"]-self.param["r_0"]/self.param["vel"]]]  # tmin, tmax
+        self.ranges_PGD = [[0., 3.],                                                                               # smin, smax
+                           [0., self.param["W"] / self.factors_ref['y_ref']],                                      # ymin, ymax
+                           [0., self.param["H"] / self.factors_ref['z_ref']],                                      # zmin, zmax
+                           [self.param["r_0"] / self.factors_ref['r_ref'], \
+                            (self.param["vel"]*self.param["t_max"]-self.param["r_0"]) / self.factors_ref['z_ref']],# rmin, rmax
+                           [0.5, 1.]]                                                                              # etamin, etamax   
+        self.ranges_FEM = [[0., self.param["L"] / self.factors_ref['x_ref']],                                       # xmin, xmax
+                           [0., self.param["W"] / self.factors_ref['y_ref']],                                       # ymin, ymax
+                           [0., self.param["H"] / self.factors_ref['z_ref']],                                       # zmin, zmax
+                           [(self.param["r_0"]/self.param["vel"]) / self.factors_ref['t_ref'], \
+                            (self.param["t_max"]-self.param["r_0"]/self.param["vel"]) / self.factors_ref['t_ref']]] # tmin, tmax
         self.num_elem_PGD = [1000, # number of elements in s
                              1000, # number of elements in y
                              100, # number of elements in z
                              1000, # number of elements in r
                              1000] # number of elements in eta
-        self.num_elem_FEM = [100, # number of elements in x
-                             100, # number of elements in y
-                             10, # number of elements in z
-                             100] # number of elements in t
+        self.num_elem_FEM = [50, # number of elements in x
+                             50, # number of elements in y
+                             50, # number of elements in z
+                             25] # number of elements in t
         
         # evaluation parameters
-        self.t_fixed = 0.9*self.param['t_max'] 
+        self.t_fixed = 0.9*self.param['t_max'] / self.factors_ref['t_ref']
         self.eta_fixed = 1.
-        self.pos_fixed = [0.5*self.param['L'], 0.5*self.param['W'], self.param['H']]
+        self.pos_fixed = [0.5*self.param['L'] / self.factors_ref['x_ref'], \
+                          0.5*self.param['W'] / self.factors_ref['y_ref'], \
+                              self.param['H'] / self.factors_ref['z_ref']]
 
         self.plotting = True
         # self.plotting = False
@@ -903,15 +920,17 @@ class problem(unittest.TestCase):
         #               dolfin.Expression('1.0', degree=1)]
         
         # q Goldak
-        self.q_FEM = dolfin.Expression('x[0] >= vel*t+hg/2 ? 0 : x[0] <= vel*t-hg/2 ? 0 : \
-                                        coeff * exp(-3*(pow(x[0]-vel*t,2)/pow(af,2) + pow(x[1]-yc,2)/pow(b,2) + pow(x[2]-zc,2)/pow(c,2)))', \
+        self.q_FEM = dolfin.Expression('x[0]*xref >= vel*t*tref+hg/2 ? 0 : x[0]*xref <= vel*t*tref-hg/2 ? 0 : \
+                                        coeff * exp(-3*(pow(x[0]*xref-vel*t*tref,2)/pow(af,2) + pow(x[1]*yref-yc,2)/pow(b,2) + pow(x[2]*zref-zc,2)/pow(c,2)))', \
                                     degree=4, coeff=self.q_coeff, af=self.param['af'], b=self.param['b'], c=self.param['c'],\
-                                    vel=self.param["vel"], hg=self.param["h_g"], yc=self.param['W']/2, zc=self.param['H'], t=0)
+                                    vel=self.param["vel"], hg=self.param["h_g"], yc=self.param['W']/2, zc=self.param['H'], \
+                                    xref=self.factors_ref['x_ref'], yref=self.factors_ref['y_ref'], zref=self.factors_ref['z_ref'], \
+                                    tref=self.factors_ref['t_ref'], t=0)
         self.q_PGD = [dolfin.Expression('exp(-3*pow((x[0]-1.5)*h_g,2)/pow(af,2))', degree=4, af=self.param["af"], h_g=self.param["h_g"]),
-                      dolfin.Expression('exp(-3*pow(x[0]-yc,2)/pow(b,2))', degree=4, b=self.param["b"], yc=self.param["W"]/2),
-                      dolfin.Expression('exp(-3*pow(x[0]-zc,2)/pow(c,2))', degree=4, c=self.param["c"], zc=self.param["H"])]
+                      dolfin.Expression('exp(-3*pow(x[0]*yref-yc,2)/pow(b,2))', degree=4, b=self.param["b"], yc=self.param["W"]/2, yref=self.factors_ref['y_ref']),
+                      dolfin.Expression('exp(-3*pow(x[0]*zref-zc,2)/pow(c,2))', degree=4, c=self.param["c"], zc=self.param["H"], zref=self.factors_ref['z_ref'])]
 
-        self.param['Tamb_fct'] = dolfin.Expression('Tamb', degree=1, Tamb=self.param["T_amb"]) # initial condition FEM
+        self.param['Tamb_fct'] = dolfin.Expression('Tamb', degree=1, Tamb=self.param["T_amb"] // self.factors_ref['T_ref']) # initial condition FEM
         self.param['IC_t'] = self.param['Tamb_fct']
         self.param['IC_x'] = dolfin.Expression('1.0', degree=1)
         self.param['IC_y'] = dolfin.Expression('1.0', degree=1)
@@ -935,7 +954,8 @@ class problem(unittest.TestCase):
         upgd_fd2, time_PGD = remapping(pgd_fd, self.param, self.pos_fixed, self.eta_fixed)
         
         # error computation
-        errors_FEM = np.linalg.norm(np.interp(meshes_FEM[1].coordinates()[:], time_PGD, upgd_fd2) - u_fem2) / np.linalg.norm(u_fem2)  # PGD FD - FEM
+        errors_FEM = np.linalg.norm(np.interp(meshes_FEM[1].coordinates()[:] * self.factors_ref['t_ref'], \
+                                              time_PGD * self.factors_ref['t_ref'], upgd_fd2) - u_fem2) / np.linalg.norm(u_fem2)  # PGD FD - FEM
         print('rel error over time: ', errors_FEM)
 
         if self.plotting:
@@ -943,8 +963,8 @@ class problem(unittest.TestCase):
             import matplotlib.pyplot as plt
             
             plt.figure()
-            plt.plot(meshes_FEM[1].coordinates()[:], u_fem2, '-or', label='FEM')
-            plt.plot(time_PGD, upgd_fd2, '-*g', label='PGD FD')
+            plt.plot(meshes_FEM[1].coordinates()[:] * self.factors_ref['t_ref'], u_fem2 * self.factors_ref['T_ref'], '-or', label='FEM')
+            plt.plot(time_PGD * self.factors_ref['t_ref'], upgd_fd2 * self.factors_ref['T_ref'], '-*g', label='PGD FD')
             plt.title(f"PGD solution at [x,eta]={self.pos_fixed[0]},{self.eta_fixed} over time")
             plt.xlabel("time t [s]")
             plt.ylabel("Temperature T [°C]")
