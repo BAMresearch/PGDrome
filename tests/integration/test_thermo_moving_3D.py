@@ -840,8 +840,8 @@ class problem(unittest.TestCase):
     def setUp(self):
         
         # define some parameters
-        self.param = {"rho": 7100, "c_p": 3100, "k": 100, "r_0": 0.0035, "vel": 0.01, "L": 0.1, "W": 0.1, "H": 0.01, \
-                      "af": 0.002, "b": 0.002, "c": 0.002, "T_amb": 25, "P": 1000, "t_max": 10}
+        self.param = {"rho": 7100, "c_p": 3100, "k": 100, "r_0": 0.01, "vel": 0.01, "L": 0.1, "W": 0.1, "H": 0.01,
+                      "af": 0.005, "b": 0.005, "c": 0.002, "T_amb": 25, "P": 1000, "t_max": 10}
         self.param.update({"h_g": self.param["af"]*3})
         self.param.update({"h_y": self.param["b"]*3})
         self.param.update({"h_z": self.param["c"]*3})
@@ -904,9 +904,9 @@ class problem(unittest.TestCase):
         
         # q Goldak
         self.q_FEM = dolfin.Expression('x[0] >= vel*t+hg/2 ? 0 : x[0] <= vel*t-hg/2 ? 0 : \
-                                        coeff * exp(-3*(pow(x[0]-vel*t,2)/pow(af,2) + pow(x[1]-yc,2)/pow(b,2) + pow(x[2]-zc,2)/pow(c,2)))', \
-                                    degree=4, coeff=self.q_coeff, af=self.param['af'], b=self.param['b'], c=self.param['c'],\
-                                    vel=self.param["vel"], hg=self.param["h_g"], yc=self.param['W']/2, zc=self.param['H'], t=0)
+                                        coeff * exp(-3*(pow(x[0]-vel*t,2)/pow(af,2) + pow(x[1]-yc,2)/pow(b,2) + pow(x[2]-zc,2)/pow(c,2)))',
+                                       degree=4, coeff=self.q_coeff, af=self.param['af'], b=self.param['b'], c=self.param['c'],
+                                       vel=self.param["vel"], hg=self.param["h_g"], yc=self.param['W']/2, zc=self.param['H'], t=0)
         self.q_PGD = [dolfin.Expression('exp(-3*pow((x[0]-1.5)*h_g,2)/pow(af,2))', degree=4, af=self.param["af"], h_g=self.param["h_g"]),
                       dolfin.Expression('exp(-3*pow(x[0]-yc,2)/pow(b,2))', degree=4, b=self.param["b"], yc=self.param["W"]/2),
                       dolfin.Expression('exp(-3*pow(x[0]-zc,2)/pow(c,2))', degree=4, c=self.param["c"], zc=self.param["H"])]
