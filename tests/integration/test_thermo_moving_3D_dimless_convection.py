@@ -103,7 +103,7 @@ def create_dom(Vs,param):
 
     class top_bottom(dolfin.SubDomain):
         def inside(self, x, on_boundary):
-            return np.isclose(x, np.max(Vs[2].mesh().coordinates()[:])) or np.isclose(x, np.min(
+            return np.isclose(x, np.min(Vs[2].mesh().coordinates()[:])) or np.isclose(x, np.max(
                 Vs[2].mesh().coordinates()[:]))
 
     front_back_dom = front_back()
@@ -119,7 +119,7 @@ def create_dom(Vs,param):
 def create_bc(Vs,dom,param):
     # Initial condition
     def init(x, on_boundary):
-        return x < param["r_0"] / param['r_ref'] + 1E-8
+        return x < np.min(Vs[3].mesh().coordinates()[:]) + 1E-8
 
     initCond = dolfin.DirichletBC(Vs[3], dolfin.Constant(0.), init)
 
@@ -186,19 +186,19 @@ def problem_assemble_lhs(fct_F,var_F,Fs,meshes,dom,param,typ,dim):
                 * alpha_r4
                 * alpha_eta1
                 * alpha_h2) \
-                * param['a_conv'] * fct_F * var_F * ds_s(i) \
+                * param['a_conv_yz'] * var_F * fct_F * ds_s(i) \
                 + dolfin.Constant(dolfin.assemble(Fs[1] * Fs[1] * ds_y)
                 * dolfin.assemble(Fs[2] * Fs[2] * dolfin.dx(meshes[2]))
                 * alpha_r4
                 * alpha_eta1
                 * alpha_h2) \
-                * param['a_conv'] * fct_F * var_F * dx_s(i) \
+                * param['a_conv_xz'] * var_F * fct_F * dx_s(i) \
                 + dolfin.Constant(dolfin.assemble(Fs[1] * Fs[1] * dolfin.dx(meshes[1]))
                 * dolfin.assemble(Fs[2] * Fs[2] * ds_z)
                 * alpha_r4
                 * alpha_eta1
                 * alpha_h2) \
-                * param['a_conv'] * fct_F * var_F * dx_s(i)
+                * param['a_conv_xy'] * var_F * fct_F * dx_s(i)
 
     if typ == 'y':
         for i in range(3):
@@ -242,19 +242,19 @@ def problem_assemble_lhs(fct_F,var_F,Fs,meshes,dom,param,typ,dim):
                 * alpha_r4
                 * alpha_eta1
                 * alpha_h2) \
-                * param['a_conv'] * fct_F * var_F * dolfin.dx(meshes[1])  \
+                * param['a_conv_yz'] * var_F * fct_F * dolfin.dx(meshes[1])  \
                 + dolfin.Constant(dolfin.assemble(Fs[0] * Fs[0] * dx_s(i))
                 * dolfin.assemble(Fs[2] * Fs[2] * dolfin.dx(meshes[2]))
                 * alpha_r4
                 * alpha_eta1
                 * alpha_h2) \
-                * param['a_conv'] * fct_F * var_F * ds_y \
+                * param['a_conv_xz'] * var_F * fct_F * ds_y \
                 + dolfin.Constant(dolfin.assemble(Fs[0] * Fs[0] * dx_s(i))
                 * dolfin.assemble(Fs[2] * Fs[2] * ds_z)
                 * alpha_r4
                 * alpha_eta1
                 * alpha_h2) \
-                * param['a_conv'] * fct_F * var_F * dolfin.dx(meshes[1])
+                * param['a_conv_xy'] * var_F * fct_F * dolfin.dx(meshes[1])
 
     if typ == 'z':
         for i in range(3):
@@ -298,19 +298,19 @@ def problem_assemble_lhs(fct_F,var_F,Fs,meshes,dom,param,typ,dim):
                 * alpha_r4
                 * alpha_eta1
                 * alpha_h2) \
-                * param['a_conv'] * fct_F * var_F * dolfin.dx(meshes[2])  \
+                * param['a_conv_yz'] * var_F * fct_F * dolfin.dx(meshes[2])  \
                 + dolfin.Constant(dolfin.assemble(Fs[0] * Fs[0] * dx_s(i))
                 * dolfin.assemble(Fs[1] * Fs[1] * ds_y)
                 * alpha_r4
                 * alpha_eta1
                 * alpha_h2) \
-                * param['a_conv'] * fct_F * var_F * dolfin.dx(meshes[2]) \
+                * param['a_conv_xz'] * var_F * fct_F * dolfin.dx(meshes[2]) \
                 + dolfin.Constant(dolfin.assemble(Fs[0] * Fs[0] * dx_s(i))
                 * dolfin.assemble(Fs[1] * Fs[1] * dolfin.dx(meshes[1]))
                 * alpha_r4
                 * alpha_eta1
                 * alpha_h2) \
-                * param['a_conv'] * fct_F * var_F * ds_z
+                * param['a_conv_xy'] * var_F * fct_F * ds_z
 
     if typ == 'r':
         for i in range(3):
@@ -349,19 +349,19 @@ def problem_assemble_lhs(fct_F,var_F,Fs,meshes,dom,param,typ,dim):
                 * dolfin.assemble(Fs[2] * Fs[2] * dolfin.dx(meshes[2])) \
                 * alpha_eta1 \
                 * alpha_h2 \
-                * param['a_conv'] * det_J[i].vector()[:] * param['M_r'] \
+                * param['a_conv_yz'] * det_J[i].vector()[:] * param['M_r'] \
                 + dolfin.assemble(Fs[0] * Fs[0] * dx_s(i)) \
                 * dolfin.assemble(Fs[1] * Fs[1] * ds_y) \
                 * dolfin.assemble(Fs[2] * Fs[2] * dolfin.dx(meshes[2])) \
                 * alpha_eta1 \
                 * alpha_h2 \
-                * param['a_conv'] * det_J[i].vector()[:] * param['M_r'] \
+                * param['a_conv_xz'] * det_J[i].vector()[:] * param['M_r'] \
                 + dolfin.assemble(Fs[0] * Fs[0] * dx_s(i)) \
                 * dolfin.assemble(Fs[1] * Fs[1] * dolfin.dx(meshes[1])) \
                 * dolfin.assemble(Fs[2] * Fs[2] * ds_z) \
                 * alpha_eta1 \
                 * alpha_h2 \
-                * param['a_conv'] * det_J[i].vector()[:] * param['M_r']
+                * param['a_conv_xy'] * det_J[i].vector()[:] * param['M_r']
 
         # add initial condition
         a[:, param['bc_idx']] = 0
@@ -410,19 +410,19 @@ def problem_assemble_lhs(fct_F,var_F,Fs,meshes,dom,param,typ,dim):
                 * dolfin.assemble(Fs[2] * Fs[2] * dolfin.dx(meshes[2])) \
                 * alpha_r4 \
                 * alpha_h2 \
-                * param['a_conv'] * param['M_eta'] \
+                * param['a_conv_yz'] * param['M_eta'] \
                 + dolfin.assemble(Fs[0] * Fs[0] * dx_s(i)) \
                 * dolfin.assemble(Fs[1] * Fs[1] * ds_y) \
                 * dolfin.assemble(Fs[2] * Fs[2] * dolfin.dx(meshes[2])) \
                 * alpha_r4 \
                 * alpha_h2 \
-                * param['a_conv'] * param['M_eta'] \
+                * param['a_conv_xz'] * param['M_eta'] \
                 + dolfin.assemble(Fs[0] * Fs[0] * dx_s(i)) \
                 * dolfin.assemble(Fs[1] * Fs[1] * dolfin.dx(meshes[1])) \
                 * dolfin.assemble(Fs[2] * Fs[2] * ds_z) \
                 * alpha_r4 \
                 * alpha_h2 \
-                * param['a_conv'] * param['M_eta']
+                * param['a_conv_xy'] * param['M_eta']
 
     if typ == 'h':
         for i in range(3):
@@ -466,19 +466,19 @@ def problem_assemble_lhs(fct_F,var_F,Fs,meshes,dom,param,typ,dim):
                 * dolfin.assemble(Fs[2] * Fs[2] * dolfin.dx(meshes[2])) \
                 * alpha_r4 \
                 * alpha_eta1 \
-                * param['a_conv'] * param['h'].vector()[:] * param['M_h'] \
+                * param['a_conv_yz'] * param['h'].vector()[:] * param['M_h'] \
                 + dolfin.assemble(Fs[0] * Fs[0] * dx_s(i)) \
                 * dolfin.assemble(Fs[1] * Fs[1] * ds_y) \
                 * dolfin.assemble(Fs[2] * Fs[2] * dolfin.dx(meshes[2])) \
                 * alpha_r4 \
                 * alpha_eta1 \
-                * param['a_conv'] * param['h'].vector()[:] * param['M_h'] \
+                * param['a_conv_xz'] * param['h'].vector()[:] * param['M_h'] \
                 + dolfin.assemble(Fs[0] * Fs[0] * dx_s(i)) \
                 * dolfin.assemble(Fs[1] * Fs[1] * dolfin.dx(meshes[1])) \
                 * dolfin.assemble(Fs[2] * Fs[2] * ds_z) \
                 * alpha_r4 \
                 * alpha_eta1 \
-                * param['a_conv'] * param['h'].vector()[:] * param['M_h']
+                * param['a_conv_xy'] * param['h'].vector()[:] * param['M_h']
 
     return a
 
@@ -515,19 +515,19 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
                 * beta_r2
                 * beta_eta2
                 * beta_h2) \
-                * param["a_conv"] * param["T_amb"] * var_F * ds_s(i) \
+                * param['l2_yz'] * param["T_amb"] * var_F * ds_s(i) \
                 + dolfin.Constant(dolfin.assemble(Fs[1] * ds_y)
                 * dolfin.assemble(Fs[2] * dolfin.dx(meshes[2]))
                 * beta_r2
                 * beta_eta2
                 * beta_h2) \
-                * param["a_conv"] * param["T_amb"] * var_F * dx_s(i) \
+                * param['l2_xz'] * param["T_amb"] * var_F * dx_s(i) \
                 + dolfin.Constant(dolfin.assemble(Fs[1] * dolfin.dx(meshes[1]))
                 * dolfin.assemble(Fs[2] * ds_z)
                 * beta_r2
                 * beta_eta2
                 * beta_h2) \
-                * param["a_conv"] * param["T_amb"] * var_F * dx_s(i)
+                * param['l2_xy'] * param["T_amb"] * var_F * dx_s(i)
         l =   dolfin.Constant(dolfin.assemble(Fs[1] * Q[1] * dolfin.dx(meshes[1]))
             * dolfin.assemble(Fs[2] * Q[2] * dolfin.dx(meshes[2]))
             * beta_r1
@@ -576,19 +576,19 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
                 * alpha_r4
                 * alpha_eta1
                 * alpha_h2) \
-                * param['a_conv'] * var_F * IC[0] * ds_s(i) \
+                * param['a_conv_yz'] * var_F * IC[0] * ds_s(i) \
                 - dolfin.Constant(dolfin.assemble(Fs[1] * IC[1] * ds_y)
                 * dolfin.assemble(Fs[2] * IC[2] * dolfin.dx(meshes[2]))
                 * alpha_r4
                 * alpha_eta1
                 * alpha_h2) \
-                * param['a_conv'] * var_F * IC[0] * dx_s(i) \
+                * param['a_conv_xz'] * var_F * IC[0] * dx_s(i) \
                 - dolfin.Constant(dolfin.assemble(Fs[1] * IC[1] * dolfin.dx(meshes[1]))
                 * dolfin.assemble(Fs[2] * IC[2] * ds_z)
                 * alpha_r4
                 * alpha_eta1
                 * alpha_h2) \
-                * param['a_conv'] * var_F * IC[0] * dx_s(i)
+                * param['a_conv_xy'] * var_F * IC[0] * dx_s(i)
         if nE > 0:
             for old in range(nE):
                 alpha_old_eta1 = Fs[4].vector()[:].transpose() @ param['M_eta'] @ PGD_func[4][old].vector()[:]
@@ -635,19 +635,19 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
                         * alpha_old_r4
                         * alpha_old_eta1
                         * alpha_old_h2) \
-                        * param['a_conv'] * var_F * PGD_func[0][old] * ds_s(j) \
+                        * param['a_conv_yz'] * var_F * PGD_func[0][old] * ds_s(j) \
                         - dolfin.Constant(dolfin.assemble(Fs[1] * PGD_func[1][old] * ds_y)
                         * dolfin.assemble(Fs[2] * PGD_func[2][old] * dolfin.dx(meshes[2]))
                         * alpha_old_r4
                         * alpha_old_eta1
                         * alpha_old_h2) \
-                        * param['a_conv'] * var_F * PGD_func[0][old] * dx_s(j) \
+                        * param['a_conv_xz'] * var_F * PGD_func[0][old] * dx_s(j) \
                         - dolfin.Constant(dolfin.assemble(Fs[1] * PGD_func[1][old] * dolfin.dx(meshes[1]))
                         * dolfin.assemble(Fs[2] * PGD_func[2][old] * ds_z)
                         * alpha_old_r4
                         * alpha_old_eta1
                         * alpha_old_h2) \
-                        * param['a_conv'] * var_F * PGD_func[0][old] * dx_s(j)
+                        * param['a_conv_xy'] * var_F * PGD_func[0][old] * dx_s(j)
 
     if typ == 'y':
         for i in range(3):
@@ -657,19 +657,19 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
                 * beta_r2
                 * beta_eta2
                 * beta_h2) \
-                * param["a_conv"] * param["T_amb"] * var_F * dolfin.dx(meshes[1]) \
+                * param['l2_yz'] * param["T_amb"] * var_F * dolfin.dx(meshes[1]) \
                 + dolfin.Constant(dolfin.assemble(Fs[0] * dx_s(i))
                 * dolfin.assemble(Fs[2] * dolfin.dx(meshes[2]))
                 * beta_r2
                 * beta_eta2
                 * beta_h2) \
-                * param["a_conv"] * param["T_amb"] * var_F * ds_y \
+                * param['l2_xz'] * param["T_amb"] * var_F * ds_y \
                 + dolfin.Constant(dolfin.assemble(Fs[0] * dx_s(i))
                 * dolfin.assemble(Fs[2] * ds_z)
                 * beta_r2
                 * beta_eta2
                 * beta_h2) \
-                * param["a_conv"] * param["T_amb"] * var_F * dolfin.dx(meshes[1])
+                * param['l2_xy'] * param["T_amb"] * var_F * dolfin.dx(meshes[1])
         l =   dolfin.Constant(dolfin.assemble(Fs[0] * Q[0] * dx_s(1))
             * dolfin.assemble(Fs[2] * Q[2] * dolfin.dx(meshes[2]))
             * beta_r1
@@ -718,19 +718,19 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
                 * alpha_r4
                 * alpha_eta1
                 * alpha_h2) \
-                * param['a_conv'] * var_F * IC[1] * dolfin.dx(meshes[1]) \
+                * param['a_conv_yz'] * var_F * IC[1] * dolfin.dx(meshes[1]) \
                 - dolfin.Constant(dolfin.assemble(Fs[0] * IC[0] * dx_s(i))
                 * dolfin.assemble(Fs[2] * IC[2] * dolfin.dx(meshes[2]))
                 * alpha_r4
                 * alpha_eta1
                 * alpha_h2) \
-                * param['a_conv'] * var_F * IC[1] * ds_y \
+                * param['a_conv_xz'] * var_F * IC[1] * ds_y \
                 - dolfin.Constant(dolfin.assemble(Fs[0] * IC[0] * dx_s(i))
                 * dolfin.assemble(Fs[2] * IC[2] * ds_z)
                 * alpha_r4
                 * alpha_eta1
                 * alpha_h2) \
-                * param['a_conv'] * var_F * IC[1] * dolfin.dx(meshes[1])
+                * param['a_conv_xy'] * var_F * IC[1] * dolfin.dx(meshes[1])
         if nE > 0:
             for old in range(nE):
                 alpha_old_eta1 = Fs[4].vector()[:].transpose() @ param['M_eta'] @ PGD_func[4][old].vector()[:]
@@ -777,19 +777,19 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
                         * alpha_old_r4
                         * alpha_old_eta1
                         * alpha_old_h2) \
-                        * param['a_conv'] * var_F * PGD_func[1][old] * dolfin.dx(meshes[1]) \
+                        * param['a_conv_yz'] * var_F * PGD_func[1][old] * dolfin.dx(meshes[1]) \
                         - dolfin.Constant(dolfin.assemble(Fs[0] * PGD_func[0][old] * dx_s(j))
                         * dolfin.assemble(Fs[2] * PGD_func[2][old] * dolfin.dx(meshes[2]))
                         * alpha_old_r4
                         * alpha_old_eta1
                         * alpha_old_h2) \
-                        * param['a_conv'] * var_F * PGD_func[1][old] * ds_y \
+                        * param['a_conv_xz'] * var_F * PGD_func[1][old] * ds_y \
                         - dolfin.Constant(dolfin.assemble(Fs[0] * PGD_func[0][old] * dx_s(j))
                         * dolfin.assemble(Fs[2] * PGD_func[2][old] * ds_z)
                         * alpha_old_r4
                         * alpha_old_eta1
                         * alpha_old_h2) \
-                        * param['a_conv'] * var_F * PGD_func[1][old] * dolfin.dx(meshes[1])
+                        * param['a_conv_xy'] * var_F * PGD_func[1][old] * dolfin.dx(meshes[1])
 
     if typ == 'z':
         for i in range(3):
@@ -799,19 +799,19 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
                 * beta_r2
                 * beta_eta2
                 * beta_h2) \
-                * param["a_conv"] * param["T_amb"] * var_F * dolfin.dx(meshes[2]) \
+                * param['l2_yz'] * param["T_amb"] * var_F * dolfin.dx(meshes[2]) \
                 + dolfin.Constant(dolfin.assemble(Fs[0] * dx_s(i))
                 * dolfin.assemble(Fs[1] * ds_y)
                 * beta_r2
                 * beta_eta2
                 * beta_h2) \
-                * param["a_conv"] * param["T_amb"] * var_F * dolfin.dx(meshes[2]) \
+                * param['l2_xz'] * param["T_amb"] * var_F * dolfin.dx(meshes[2]) \
                 + dolfin.Constant(dolfin.assemble(Fs[0] * dx_s(i))
                 * dolfin.assemble(Fs[1] * dolfin.dx(meshes[1]))
                 * beta_r2
                 * beta_eta2
                 * beta_h2) \
-                * param["a_conv"] * param["T_amb"] * var_F * ds_z
+                * param['l2_xy'] * param["T_amb"] * var_F * ds_z
         l =   dolfin.Constant(dolfin.assemble(Fs[0] * Q[0] * dx_s(1))
             * dolfin.assemble(Fs[1] * Q[1] * dolfin.dx(meshes[1]))
             * beta_r1
@@ -860,19 +860,19 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
                 * alpha_r4
                 * alpha_eta1
                 * alpha_h2) \
-                * param['a_conv'] * var_F * IC[2] * dolfin.dx(meshes[2]) \
+                * param['a_conv_yz'] * var_F * IC[2] * dolfin.dx(meshes[2]) \
                 - dolfin.Constant(dolfin.assemble(Fs[0] * IC[0] * dx_s(i))
                 * dolfin.assemble(Fs[1] * IC[1] * ds_y)
                 * alpha_r4
                 * alpha_eta1
                 * alpha_h2) \
-                * param['a_conv'] * var_F * IC[2] * dolfin.dx(meshes[2]) \
+                * param['a_conv_xz'] * var_F * IC[2] * dolfin.dx(meshes[2]) \
                 - dolfin.Constant(dolfin.assemble(Fs[0] * IC[0] * dx_s(i))
                 * dolfin.assemble(Fs[1] * IC[1] * dolfin.dx(meshes[1]))
                 * alpha_r4
                 * alpha_eta1
                 * alpha_h2) \
-                * param['a_conv'] * var_F * IC[2] * ds_z
+                * param['a_conv_xy'] * var_F * IC[2] * ds_z
         if nE > 0:
             for old in range(nE):
                 alpha_old_eta1 = Fs[4].vector()[:].transpose() @ param['M_eta'] @ PGD_func[4][old].vector()[:]
@@ -919,19 +919,19 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
                         * alpha_old_r4
                         * alpha_old_eta1
                         * alpha_old_h2) \
-                        * param['a_conv'] * var_F * PGD_func[2][old] * dolfin.dx(meshes[2]) \
+                        * param['a_conv_yz'] * var_F * PGD_func[2][old] * dolfin.dx(meshes[2]) \
                         - dolfin.Constant(dolfin.assemble(Fs[0] * PGD_func[0][old] * dx_s(j))
                         * dolfin.assemble(Fs[1] * PGD_func[1][old] * ds_y)
                         * alpha_old_r4
                         * alpha_old_eta1
                         * alpha_old_h2) \
-                        * param['a_conv'] * var_F * PGD_func[2][old] * dolfin.dx(meshes[2]) \
+                        * param['a_conv_xz'] * var_F * PGD_func[2][old] * dolfin.dx(meshes[2]) \
                         - dolfin.Constant(dolfin.assemble(Fs[0] * PGD_func[0][old] * dx_s(j))
                         * dolfin.assemble(Fs[1] * PGD_func[1][old] * dolfin.dx(meshes[1]))
                         * alpha_old_r4
                         * alpha_old_eta1
                         * alpha_old_h2) \
-                        * param['a_conv'] * var_F * PGD_func[2][old] * ds_z
+                        * param['a_conv_xy'] * var_F * PGD_func[2][old] * ds_z
 
     if typ == 'r':
         for i in range(3):
@@ -940,19 +940,19 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
                 * dolfin.assemble(Fs[2] * dolfin.dx(meshes[2])) \
                 * beta_eta2 \
                 * beta_h2 \
-                * param["a_conv"] * param["T_amb"] * det_J[i].vector()[:] * param['M_r'] @ np.ones(len(Q[3].vector())) \
+                * param['l2_yz'] * param["T_amb"] * det_J[i].vector()[:] * param['M_r'] @ np.ones(len(Q[3].vector())) \
                 + dolfin.assemble(Fs[0] * dx_s(i)) \
                 * dolfin.assemble(Fs[1] * ds_y) \
                 * dolfin.assemble(Fs[2] * dolfin.dx(meshes[2])) \
                 * beta_eta2 \
                 * beta_h2 \
-                * param["a_conv"] * param["T_amb"] * det_J[i].vector()[:] * param['M_r'] @ np.ones(len(Q[3].vector())) \
+                * param['l2_xz'] * param["T_amb"] * det_J[i].vector()[:] * param['M_r'] @ np.ones(len(Q[3].vector())) \
                 + dolfin.assemble(Fs[0] * dx_s(i)) \
                 * dolfin.assemble(Fs[1] * dolfin.dx(meshes[1])) \
                 * dolfin.assemble(Fs[2] * ds_z) \
                 * beta_eta2 \
                 * beta_h2 \
-                * param["a_conv"] * param["T_amb"] * det_J[i].vector()[:] * param['M_r'] @ np.ones(len(Q[3].vector()))
+                * param['l2_xy'] * param["T_amb"] * det_J[i].vector()[:] * param['M_r'] @ np.ones(len(Q[3].vector()))
         l =   dolfin.assemble(Fs[0] * Q[0] * dx_s(1)) \
             * dolfin.assemble(Fs[1] * Q[1] * dolfin.dx(meshes[1])) \
             * dolfin.assemble(Fs[2] * Q[2] * dolfin.dx(meshes[2])) \
@@ -996,19 +996,19 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
                 * dolfin.assemble(Fs[2] * IC[2] * dolfin.dx(meshes[2])) \
                 * alpha_eta1 \
                 * alpha_h2 \
-                * param['a_conv'] * det_J[i].vector()[:] * param['M_r'] @ IC[3].vector()[:] \
+                * param['a_conv_yz'] * det_J[i].vector()[:] * param['M_r'] @ IC[3].vector()[:] \
                 - dolfin.assemble(Fs[0] * IC[0] * dx_s(i)) \
                 * dolfin.assemble(Fs[1] * IC[1] * ds_y) \
                 * dolfin.assemble(Fs[2] * IC[2] * dolfin.dx(meshes[2])) \
                 * alpha_eta1 \
                 * alpha_h2 \
-                * param['a_conv'] * det_J[i].vector()[:] * param['M_r'] @ IC[3].vector()[:] \
+                * param['a_conv_xz'] * det_J[i].vector()[:] * param['M_r'] @ IC[3].vector()[:] \
                 - dolfin.assemble(Fs[0] * IC[0] * dx_s(i)) \
                 * dolfin.assemble(Fs[1] * IC[1] * dolfin.dx(meshes[1])) \
                 * dolfin.assemble(Fs[2] * IC[2] * ds_z) \
                 * alpha_eta1 \
                 * alpha_h2 \
-                * param['a_conv'] * det_J[i].vector()[:] * param['M_r'] @ IC[3].vector()[:]
+                * param['a_conv_xy'] * det_J[i].vector()[:] * param['M_r'] @ IC[3].vector()[:]
         if nE > 0:
             for old in range(nE):
                 alpha_old_eta1 = Fs[4].vector()[:].transpose() @ param['M_eta'] @ PGD_func[4][old].vector()[:]
@@ -1050,19 +1050,19 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
                         * dolfin.assemble(Fs[2] * PGD_func[2][old] * dolfin.dx(meshes[2])) \
                         * alpha_old_eta1 \
                         * alpha_old_h2 \
-                        * param['a_conv'] * det_J[j].vector()[:] * param['M_r'] @ PGD_func[3][old].vector()[:] \
+                        * param['a_conv_yz'] * det_J[j].vector()[:] * param['M_r'] @ PGD_func[3][old].vector()[:] \
                         - dolfin.assemble(Fs[0] * PGD_func[0][old] * dx_s(j)) \
                         * dolfin.assemble(Fs[1] * PGD_func[1][old] * ds_y) \
                         * dolfin.assemble(Fs[2] * PGD_func[2][old] * dolfin.dx(meshes[2])) \
                         * alpha_old_eta1 \
                         * alpha_old_h2 \
-                        * param['a_conv'] * det_J[j].vector()[:] * param['M_r'] @ PGD_func[3][old].vector()[:] \
+                        * param['a_conv_xz'] * det_J[j].vector()[:] * param['M_r'] @ PGD_func[3][old].vector()[:] \
                         - dolfin.assemble(Fs[0] * PGD_func[0][old] * dx_s(j)) \
                         * dolfin.assemble(Fs[1] * PGD_func[1][old] * dolfin.dx(meshes[1])) \
                         * dolfin.assemble(Fs[2] * PGD_func[2][old] * ds_z) \
                         * alpha_old_eta1 \
                         * alpha_old_h2 \
-                        * param['a_conv'] * det_J[j].vector()[:] * param['M_r'] @ PGD_func[3][old].vector()[:]
+                        * param['a_conv_xy'] * det_J[j].vector()[:] * param['M_r'] @ PGD_func[3][old].vector()[:]
 
         # add initial condition
         l[param['bc_idx']] = 0
@@ -1075,19 +1075,19 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
                 * dolfin.assemble(Fs[2] * dolfin.dx(meshes[2])) \
                 * beta_r2 \
                 * beta_h2 \
-                * param["a_conv"] * param["T_amb"] * param['M_eta'] @ np.ones(len(Q[4].vector())) \
+                * param['l2_yz'] * param["T_amb"] * param['M_eta'] @ np.ones(len(Q[4].vector())) \
                 + dolfin.assemble(Fs[0] * dx_s(i)) \
                 * dolfin.assemble(Fs[1] * ds_y) \
                 * dolfin.assemble(Fs[2] * dolfin.dx(meshes[2])) \
                 * beta_r2 \
                 * beta_h2 \
-                * param["a_conv"] * param["T_amb"] * param['M_eta'] @ np.ones(len(Q[4].vector())) \
+                * param['l2_xz'] * param["T_amb"] * param['M_eta'] @ np.ones(len(Q[4].vector())) \
                 + dolfin.assemble(Fs[0] * dx_s(i)) \
                 * dolfin.assemble(Fs[1] * dolfin.dx(meshes[1])) \
                 * dolfin.assemble(Fs[2] * ds_z) \
                 * beta_r2 \
                 * beta_h2 \
-                * param["a_conv"] * param["T_amb"] * param['M_eta'] @ np.ones(len(Q[4].vector()))
+                * param['l2_xy'] * param["T_amb"] * param['M_eta'] @ np.ones(len(Q[4].vector()))
         l =   dolfin.assemble(Fs[0] * Q[0] * dx_s(1)) \
             * dolfin.assemble(Fs[1] * Q[1] * dolfin.dx(meshes[1])) \
             * dolfin.assemble(Fs[2] * Q[2] * dolfin.dx(meshes[2])) \
@@ -1136,19 +1136,19 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
                 * dolfin.assemble(Fs[2] * IC[2] * dolfin.dx(meshes[2])) \
                 * alpha_r4 \
                 * alpha_h2 \
-                * param['a_conv'] * param['M_eta'] @ IC[4].vector()[:] \
+                * param['a_conv_yz'] * param['M_eta'] @ IC[4].vector()[:] \
                 - dolfin.assemble(Fs[0] * IC[0] * dx_s(i)) \
                 * dolfin.assemble(Fs[1] * IC[1] * ds_y) \
                 * dolfin.assemble(Fs[2] * IC[2] * dolfin.dx(meshes[2])) \
                 * alpha_r4 \
                 * alpha_h2 \
-                * param['a_conv'] * param['M_eta'] @ IC[4].vector()[:] \
+                * param['a_conv_xz'] * param['M_eta'] @ IC[4].vector()[:] \
                 - dolfin.assemble(Fs[0] * IC[0] * dx_s(i)) \
                 * dolfin.assemble(Fs[1] * IC[1] * dolfin.dx(meshes[1])) \
                 * dolfin.assemble(Fs[2] * IC[2] * ds_z) \
                 * alpha_r4 \
                 * alpha_h2 \
-                * param['a_conv'] * param['M_eta'] @ IC[4].vector()[:]
+                * param['a_conv_xy'] * param['M_eta'] @ IC[4].vector()[:]
         if nE > 0:
             for old in range(nE):
                 alpha_old_h1 = Fs[5].vector()[:].transpose() @ param['M_h'] @ PGD_func[5][old].vector()[:]
@@ -1194,19 +1194,19 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
                         * dolfin.assemble(Fs[2] * PGD_func[2][old] * dolfin.dx(meshes[2])) \
                         * alpha_old_r4 \
                         * alpha_old_h2 \
-                        * param['a_conv'] * param['M_eta'] @ PGD_func[4][old].vector()[:] \
+                        * param['a_conv_yz'] * param['M_eta'] @ PGD_func[4][old].vector()[:] \
                         - dolfin.assemble(Fs[0] * PGD_func[0][old] * dx_s(j)) \
                         * dolfin.assemble(Fs[1] * PGD_func[1][old] * ds_y) \
                         * dolfin.assemble(Fs[2] * PGD_func[2][old] * dolfin.dx(meshes[2])) \
                         * alpha_old_r4 \
                         * alpha_old_h2 \
-                        * param['a_conv'] * param['M_eta'] @ PGD_func[4][old].vector()[:] \
+                        * param['a_conv_xz'] * param['M_eta'] @ PGD_func[4][old].vector()[:] \
                         - dolfin.assemble(Fs[0] * PGD_func[0][old] * dx_s(j)) \
                         * dolfin.assemble(Fs[1] * PGD_func[1][old] * dolfin.dx(meshes[1])) \
                         * dolfin.assemble(Fs[2] * PGD_func[2][old] * ds_z) \
                         * alpha_old_r4 \
                         * alpha_old_h2 \
-                        * param['a_conv'] * param['M_eta'] @ PGD_func[4][old].vector()[:]
+                        * param['a_conv_xy'] * param['M_eta'] @ PGD_func[4][old].vector()[:]
 
     if typ == 'h':
         for i in range(3):
@@ -1216,19 +1216,19 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
                 * dolfin.assemble(Fs[2] * dolfin.dx(meshes[2])) \
                 * beta_r2 \
                 * beta_eta2 \
-                * param["a_conv"] * param["T_amb"] * param['h'].vector()[:] * param['M_h'] @ np.ones(len(Q[5].vector())) \
+                * param['l2_yz'] * param["T_amb"] * param['h'].vector()[:] * param['M_h'] @ np.ones(len(Q[5].vector())) \
                 + dolfin.assemble(Fs[0] * dx_s(i)) \
                 * dolfin.assemble(Fs[1] * ds_y) \
                 * dolfin.assemble(Fs[2] * dolfin.dx(meshes[2])) \
                 * beta_r2 \
                 * beta_eta2 \
-                * param["a_conv"] * param["T_amb"] * param['h'].vector()[:] * param['M_h'] @ np.ones(len(Q[5].vector())) \
+                * param['l2_xz'] * param["T_amb"] * param['h'].vector()[:] * param['M_h'] @ np.ones(len(Q[5].vector())) \
                 + dolfin.assemble(Fs[0] * dx_s(i)) \
                 * dolfin.assemble(Fs[1] * dolfin.dx(meshes[1])) \
                 * dolfin.assemble(Fs[2] * ds_z) \
                 * beta_r2 \
                 * beta_eta2 \
-                * param["a_conv"] * param["T_amb"] * param['h'].vector()[:] * param['M_h'] @ np.ones(len(Q[5].vector()))
+                * param['l2_xy'] * param["T_amb"] * param['h'].vector()[:] * param['M_h'] @ np.ones(len(Q[5].vector()))
         l =   dolfin.assemble(Fs[0] * Q[0] * dx_s(1)) \
             * dolfin.assemble(Fs[1] * Q[1] * dolfin.dx(meshes[1])) \
             * dolfin.assemble(Fs[2] * Q[2] * dolfin.dx(meshes[2])) \
@@ -1277,19 +1277,19 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
                 * dolfin.assemble(Fs[2] * IC[2] * dolfin.dx(meshes[2])) \
                 * alpha_r4 \
                 * alpha_eta1 \
-                * param['a_conv'] * param['h'].vector()[:] * param['M_h'] @ IC[5].vector()[:] \
+                * param['a_conv_yz'] * param['h'].vector()[:] * param['M_h'] @ IC[5].vector()[:] \
                 - dolfin.assemble(Fs[0] * IC[0] * dx_s(i)) \
                 * dolfin.assemble(Fs[1] * IC[1] * ds_y) \
                 * dolfin.assemble(Fs[2] * IC[2] * dolfin.dx(meshes[2])) \
                 * alpha_r4 \
                 * alpha_eta1 \
-                * param['a_conv'] * param['h'].vector()[:] * param['M_h'] @ IC[5].vector()[:] \
+                * param['a_conv_xz'] * param['h'].vector()[:] * param['M_h'] @ IC[5].vector()[:] \
                 - dolfin.assemble(Fs[0] * IC[0] * dx_s(i)) \
                 * dolfin.assemble(Fs[1] * IC[1] * dolfin.dx(meshes[1])) \
                 * dolfin.assemble(Fs[2] * IC[2] * ds_z) \
                 * alpha_r4 \
                 * alpha_eta1 \
-                * param['a_conv'] * param['h'].vector()[:] * param['M_h'] @ IC[5].vector()[:]
+                * param['a_conv_xy'] * param['h'].vector()[:] * param['M_h'] @ IC[5].vector()[:]
         if nE > 0:
             for old in range(nE):
                 alpha_old_eta1 = Fs[4].vector()[:].transpose() @ param['M_eta'] @ PGD_func[4][old].vector()[:]
@@ -1334,19 +1334,19 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
                         * dolfin.assemble(Fs[2] * PGD_func[2][old] * dolfin.dx(meshes[2])) \
                         * alpha_old_r4 \
                         * alpha_old_eta1 \
-                        * param['a_conv'] * param['h'].vector()[:] * param['M_h'] @ PGD_func[5][old].vector()[:] \
+                        * param['a_conv_yz'] * param['h'].vector()[:] * param['M_h'] @ PGD_func[5][old].vector()[:] \
                         - dolfin.assemble(Fs[0] * PGD_func[0][old] * dx_s(j)) \
                         * dolfin.assemble(Fs[1] * PGD_func[1][old] * ds_y) \
                         * dolfin.assemble(Fs[2] * PGD_func[2][old] * dolfin.dx(meshes[2])) \
                         * alpha_old_r4 \
                         * alpha_old_eta1 \
-                        * param['a_conv'] * param['h'].vector()[:] * param['M_h'] @ PGD_func[5][old].vector()[:] \
+                        * param['a_conv_xz'] * param['h'].vector()[:] * param['M_h'] @ PGD_func[5][old].vector()[:] \
                         - dolfin.assemble(Fs[0] * PGD_func[0][old] * dx_s(j)) \
                         * dolfin.assemble(Fs[1] * PGD_func[1][old] * dolfin.dx(meshes[1])) \
                         * dolfin.assemble(Fs[2] * PGD_func[2][old] * ds_z) \
                         * alpha_old_r4 \
                         * alpha_old_eta1 \
-                        * param['a_conv'] * param['h'].vector()[:] * param['M_h'] @ PGD_func[5][old].vector()[:]
+                        * param['a_conv_xy'] * param['h'].vector()[:] * param['M_h'] @ PGD_func[5][old].vector()[:]
 
     return l
 
@@ -1394,7 +1394,7 @@ def create_PGD(param={}, vs=[], q_PGD=None, q_coeff=None):
 
     # create FD matrices from meshes
     # r case
-    r_dofs = np.array(vs[3].tabulate_dof_coordinates()[:].flatten()) / param['r_ref']
+    r_dofs = np.array(vs[3].tabulate_dof_coordinates()[:].flatten()) 
     r_sort = np.argsort(r_dofs)
     M_r, _, D1_up_r = FD_matrices(r_dofs[r_sort])
     param['M_r'], param['D1_up_r'] = M_r[r_sort, :][:, r_sort], D1_up_r[r_sort, :][:, r_sort]
@@ -1405,7 +1405,7 @@ def create_PGD(param={}, vs=[], q_PGD=None, q_coeff=None):
     M_eta, _, _ = FD_matrices(eta_dofs[eta_sort])
     param['M_eta'] = M_eta[eta_sort, :][:, eta_sort]
     # h case
-    h_dofs = np.array(vs[5].tabulate_dof_coordinates()[:].flatten()) / param['h_ref']
+    h_dofs = np.array(vs[5].tabulate_dof_coordinates()[:].flatten()) 
     h_sort = np.argsort(h_dofs)
     M_h, _, _ = FD_matrices(h_dofs[h_sort])
     param['M_h'] = M_h[h_sort, :][:, h_sort]
@@ -1417,7 +1417,7 @@ def create_PGD(param={}, vs=[], q_PGD=None, q_coeff=None):
                            Vs=vs, dom_fct=create_dom, bc_fct=create_bc, load=[q_s, q_y, q_z, q_r, q_eta, q_h],
                            param=param, rhs_fct=problem_assemble_rhs, lhs_fct=problem_assemble_lhs,
                            probs=['s', 'y', 'z', 'r', 'eta', 'h'], seq_fp=np.arange(len(vs)),
-                           PGD_nmax=5, PGD_tol=1e-5)
+                           PGD_nmax=20, PGD_tol=1e-5)
 
     pgd_prob.MM = [0, 0, 0, param['M_r'], param['M_eta'], param['M_h']]  # for norms!
 
@@ -1634,6 +1634,10 @@ class problem(unittest.TestCase):
 
         self.param.update({"h_g": self.param["af"]*3})
 
+        # self.param.update({'x_ref': 1, 'y_ref': 1, 'z_ref': 1,
+        #                     't_ref': 1,
+        #                     'r_ref': 1,
+        #                     'h_ref': 1, 'T_ref': 1})
         self.param.update({'x_ref': self.param['L'], 'y_ref': self.param['W'], 'z_ref': self.param['H'],
                             't_ref': self.param['t_max']-self.param["r_0"]/self.param["vel"],
                             'r_ref': self.param["vel"]*self.param["t_max"]-self.param["r_0"],
@@ -1648,8 +1652,13 @@ class problem(unittest.TestCase):
         self.param['a_x2'] = self.param['T_ref'] / (self.param['x_ref']**2 * del_dim)
         self.param['a_y2'] = self.param['T_ref'] / (self.param['y_ref']**2 * del_dim)
         self.param['a_z2'] = self.param['T_ref'] / (self.param['z_ref']**2 * del_dim)
-        self.param['a_conv'] = self.param['T_ref'] / (del_dim)
+        self.param['a_conv_xy'] = self.param['T_ref'] * self.param['x_ref'] * self.param['y_ref'] / del_dim
+        self.param['a_conv_xz'] = self.param['T_ref'] * self.param['x_ref'] * self.param['z_ref'] / del_dim
+        self.param['a_conv_yz'] = self.param['T_ref'] * self.param['y_ref'] * self.param['z_ref'] / del_dim
         self.param['l1'] = 1.0 / del_dim
+        self.param['l2_xy'] = self.param['x_ref'] * self.param['y_ref'] / (self.param['T_ref'] * del_dim)
+        self.param['l2_xz'] = self.param['x_ref'] * self.param['z_ref'] / (self.param['T_ref'] * del_dim)
+        self.param['l2_yz'] = self.param['y_ref'] * self.param['z_ref'] / (self.param['T_ref'] * del_dim)
 
         # global parameters
         self.ord = 1  # order for each mesh
