@@ -289,7 +289,7 @@ class PgdCooling:
                 alpha_r1 = (Fs[3].vector()[:] * Bt[i][0][1].vector()[:] * det_J[i].vector()[:]).transpose() @ param['M_r'] @ Fs[3].vector()[:]
                 alpha_r2 = (Fs[3].vector()[:] * Bt[i][1]).transpose() @ param['D1_up_r'] @ Fs[3].vector()[:]
                 alpha_r3 = (Fs[3].vector()[:] * det_J[i].vector()[:] * Bx[i].vector()[:] * Bx[i].vector()[:]).transpose() @ param['M_r'] @ Fs[3].vector()[:]
-                alpha_r4 = (Fs[3].vector()[:] * det_J[i].vector()[:]).transpose() @ param['M_r'] @ Fs[3].vector()[:]
+                
 
                 a +=  dolfin.Constant(dolfin.assemble(Fs[0] * Fs[0].dx(0) * Bt[i][0][0] * dx_s(i))
                     * dolfin.assemble(Fs[1] * Fs[1] * dolfin.dx(meshes[1]))
