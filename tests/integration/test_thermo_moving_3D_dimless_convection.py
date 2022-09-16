@@ -91,10 +91,20 @@ def create_dom(Vs,param):
     right_dom.mark(subdomains, 2)
 
     # create boundarydomains
+    boundarydomain_s = dolfin.MeshFunction("size_t", Vs[0].mesh(), Vs[1].mesh().topology().dim() - 1)
+    boundarydomain_s.set_all(1)
     boundarydomain_y = dolfin.MeshFunction("size_t", Vs[1].mesh(), Vs[1].mesh().topology().dim() - 1)
     boundarydomain_y.set_all(0)
     boundarydomain_z = dolfin.MeshFunction("size_t", Vs[2].mesh(), Vs[2].mesh().topology().dim() - 1)
     boundarydomain_z.set_all(0)
+
+    class left(dolfin.SubDomain):
+        def inside(self, x, on_boundary):
+            return np.isclose(x, np.min(Vs[0].mesh().coordinates()[:]))
+
+    class right(dolfin.SubDomain):
+        def inside(self, x, on_boundary):
+            return np.isclose(x, np.max(Vs[0].mesh().coordinates()[:]))
 
     class front_back(dolfin.SubDomain):
         def inside(self, x, on_boundary):
@@ -106,12 +116,16 @@ def create_dom(Vs,param):
             return np.isclose(x, np.min(Vs[2].mesh().coordinates()[:])) or np.isclose(x, np.max(
                 Vs[2].mesh().coordinates()[:]))
 
+    left_ = left()
+    left_.mark(boundarydomain_s, 0)
+    right_ = right()
+    right_.mark(boundarydomain_s, 2)
     front_back_dom = front_back()
     front_back_dom.mark(boundarydomain_y, 1)
     top_bottom_dom = top_bottom()
     top_bottom_dom.mark(boundarydomain_z, 1)
 
-    dom = [subdomains, boundarydomain_y, boundarydomain_z]
+    dom = [subdomains, boundarydomain_y, boundarydomain_z, boundarydomain_s]
     dom.extend(np.zeros(len(Vs)-1, dtype=int))
 
     return dom
@@ -123,13 +137,13 @@ def create_bc(Vs,dom,param):
 
     initCond = dolfin.DirichletBC(Vs[3], dolfin.Constant(0.), init)
 
-    return [0, 0, 0, initCond, 0, 0] # s, y, z, r, eta, h
+    return [0, 0, 0, initCond, 0, 0]  # s, y, z, r, eta, h
 
 def problem_assemble_lhs(fct_F,var_F,Fs,meshes,dom,param,typ,dim):
     # problem description left hand side of DGL for each fixed point problem
 
     # define measures
-    ds_s = dolfin.Measure('ds', domain=meshes[0], subdomain_data=dom[0])
+    ds_s = dolfin.Measure('ds', domain=meshes[0], subdomain_data=dom[3])
     ds_y = dolfin.Measure('ds', domain=meshes[1], subdomain_data=dom[1])
     ds_z = dolfin.Measure('ds', domain=meshes[2], subdomain_data=dom[2])
     dx_s = dolfin.Measure('dx', domain=meshes[0], subdomain_data=dom[0])
@@ -486,7 +500,7 @@ def problem_assemble_rhs(fct_F,var_F,Fs,meshes,dom,param,Q,PGD_func,typ,nE,dim):
     # problem description right hand side of DGL for each fixed point problem
 
     # define measures
-    ds_s = dolfin.Measure('ds', domain=meshes[0], subdomain_data=dom[0])
+    ds_s = dolfin.Measure('ds', domain=meshes[0], subdomain_data=dom[3])
     ds_y = dolfin.Measure('ds', domain=meshes[1], subdomain_data=dom[1])
     ds_z = dolfin.Measure('ds', domain=meshes[2], subdomain_data=dom[2])
     dx_s = dolfin.Measure('dx', domain=meshes[0], subdomain_data=dom[0])
@@ -1405,7 +1419,7 @@ def create_PGD(param={}, vs=[], q_PGD=None, q_coeff=None):
     M_eta, _, _ = FD_matrices(eta_dofs[eta_sort])
     param['M_eta'] = M_eta[eta_sort, :][:, eta_sort]
     # h case
-    h_dofs = np.array(vs[5].tabulate_dof_coordinates()[:].flatten()) 
+    h_dofs = np.array(vs[5].tabulate_dof_coordinates()[:].flatten())
     h_sort = np.argsort(h_dofs)
     M_h, _, _ = FD_matrices(h_dofs[h_sort])
     param['M_h'] = M_h[h_sort, :][:, h_sort]
@@ -1422,7 +1436,7 @@ def create_PGD(param={}, vs=[], q_PGD=None, q_coeff=None):
     pgd_prob.MM = [0, 0, 0, param['M_r'], param['M_eta'], param['M_h']]  # for norms!
 
     pgd_prob.stop_fp = 'norm'
-    pgd_prob.max_fp_it = 20
+    pgd_prob.max_fp_it = 50
     pgd_prob.tol_fp_it = 1e-5
     pgd_prob.norm_modes = 'stiff'
 
@@ -1450,7 +1464,7 @@ def remapping(pgd_solution=None, param=None, pos_fixed=None, eta_fixed=None, h_f
     # map back to x in PGD
     PGD_heating = np.zeros(len(r_mesh))
     for i, rr in enumerate(r_mesh):
-        u_pgd = pgd_solution.evaluate(0, [1, 2, 3, 4], [y_fixed, z_fixed, rr, eta_fixed, h_fixed], 0)
+        u_pgd = pgd_solution.evaluate(0, [1, 2, 3, 4, 5], [y_fixed, z_fixed, rr, eta_fixed, h_fixed], 0)
 
         # left side
         s_temp = x_fixed * param['x_ref'] / param["h_1"](rr)
@@ -1731,6 +1745,11 @@ class problem(unittest.TestCase):
         # PGD
         pgd_fd, param = create_PGD(param=self.param, vs=vs_PGD, q_PGD=self.q_PGD, q_coeff=self.q_coeff)
 
+        # cooling
+        from thermo_3D_dimless_convection_cooling import PgdCooling
+        pgd_cooling, param_cool = PgdCooling(pgd_fd, self.param)(self.pos_fixed, self.t_fixed, self.eta_fixed, self.h_fixed)
+        cool_sol = pgd_cooling.evaluate(3, [0, 1, 2, 4, 5], [self.pos_fixed[0], self.pos_fixed[1], self.pos_fixed[2], self.eta_fixed, self.h_fixed], 0)
+
         # FEM reference solution
         u_fem, u_fem2 = Reference(param=self.param, vs=vs_FEM, q=self.q_FEM, pos_fixed=self.pos_fixed)(
             [self.t_fixed, self.eta_fixed, self.h_fixed])
@@ -1748,17 +1767,25 @@ class problem(unittest.TestCase):
             import matplotlib.pyplot as plt
 
             plt.figure()
-            plt.plot(meshes_FEM[1].coordinates()[:], np.array(u_fem2), '-or', label='FEM')
-            plt.plot(time_PGD * self.param['r_ref'], upgd_fd2 * self.param['T_ref'], '-*g', label='PGD FD')
+            plt.plot(meshes_FEM[1].coordinates()[:], np.array(u_fem2), '-og', label='FEM')
+            plt.plot(time_PGD * self.param['r_ref'], upgd_fd2 * self.param['T_ref'], '-*r', label='PGD FD')
             plt.title(f"PGD solution at [x,eta,h]={self.pos_fixed[0]*self.param['x_ref']},{self.eta_fixed},{self.h_fixed*self.param['h_ref']} over time")
             plt.xlabel("time t [s]")
             plt.ylabel("Temperature T [°C]")
             plt.legend()
-
             plt.draw()
             plt.show()
 
-        # self.assertTrue(errors_FEM < 1e-2) 
+            plt.figure()
+            plt.plot(pgd_cooling.mesh[3].dataX[:] * param_cool['t_ref_cool'], cool_sol * param_cool['T_ref'], '-*b', label='PGD FD')
+            plt.title('cooling phase')
+            plt.xlabel("time t [s]")
+            plt.ylabel("Temperature T [°C]")
+            plt.legend()
+            plt.draw()
+            plt.show()
+
+        # self.assertTrue(errors_FEM < 1e-2)
 
 if __name__ == '__main__':
     dolfin.set_log_level(dolfin.LogLevel.ERROR)
