@@ -563,10 +563,20 @@ class PGD:
             :return eval: evaluated solution for the fixed variable NEW as fenics function (old array at vertex values)
         '''
 
+        # check if given free_dims are ok:
+        if len(free_dim) != self.num_pgd_var - 1:
+            raise ValueError('given variables are missing or to much, free_dim=%s <-> num_pgd_var=%s', free_dim,
+                             self.num_pgd_var - 1)
+
         # check if given coordinates are ok:
         if len(coord) != self.num_pgd_var - 1:
             raise ValueError('given variables are missing or to much, coord=%s <-> num_pgd_var=%s', coord,
                              self.num_pgd_var - 1)
+
+        # check if given free_dims have the same length as given coordinates:
+        if len(free_dim) != len(coord):
+            raise ValueError('Number of free Dimensions and given coordinates are not the same, free_dim=%s <-> coord=%s',
+                             free_dim, coord)
 
         # only possible if freeDims are one dimensional
         for i in range(len(free_dim)):
