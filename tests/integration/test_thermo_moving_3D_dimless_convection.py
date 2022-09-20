@@ -35,7 +35,7 @@ def create_meshes_PGD(num_elem, ord, ranges):
 
     return meshes, Vs
 
-def create_meshes_FEM(num_elem, ord, ranges):
+def create_meshes_FEM(num_elem, ord, ranges, param):
     '''
     :param num_elem: list for each PG CO
     :param ord: list for each PG CO
@@ -45,26 +45,17 @@ def create_meshes_FEM(num_elem, ord, ranges):
 
     print('create meshes FEM')
 
-    meshes = list()
-    Vs = list()
-
     # space mesh
-    mesh_tmp = dolfin.BoxMesh(dolfin.Point(ranges[0][0], ranges[1][0], ranges[2][0]),\
-                              dolfin.Point(ranges[0][1], ranges[1][1], ranges[2][1]),\
+    mesh = dolfin.BoxMesh(dolfin.Point(ranges[0][0], ranges[1][0], ranges[2][0]),
+                              dolfin.Point(ranges[0][1], ranges[1][1], ranges[2][1]),
                               num_elem[0], num_elem[1], num_elem[2])
-    Vs_tmp = dolfin.FunctionSpace(mesh_tmp,'CG', ord[0]*2)
-
-    meshes.append(mesh_tmp)
-    Vs.append(Vs_tmp)
+    vs = dolfin.FunctionSpace(mesh,'CG', ord[0]*2)
 
     # time mesh
-    mesh_tmp = dolfin.IntervalMesh(num_elem[3], ranges[3][0], ranges[3][1])
-    Vs_tmp = dolfin.FunctionSpace(mesh_tmp, 'CG', ord[3])
+    time_points = np.concatenate((np.linspace(ranges[3][0], param['turnOff'], num_elem[3], endpoint=False),
+                                 np.linspace(param['turnOff'], ranges[3][1], num_elem[3])))
 
-    meshes.append(mesh_tmp)
-    Vs.append(Vs_tmp)
-
-    return meshes, Vs
+    return vs, time_points
 
 def create_dom(Vs,param):
     # create domains in s
@@ -1412,7 +1403,7 @@ def create_PGD(param={}, vs=[], q_PGD=None, q_coeff=None):
     r_sort = np.argsort(r_dofs)
     M_r, _, D1_up_r = FD_matrices(r_dofs[r_sort])
     param['M_r'], param['D1_up_r'] = M_r[r_sort, :][:, r_sort], D1_up_r[r_sort, :][:, r_sort]
-    param['bc_idx'] = np.where(r_dofs == 0)[0]
+    param['bc_idx'] = np.where(r_dofs == np.min(vs[3].mesh().coordinates()[:]))[0]
     # eta case
     eta_dofs = np.array(vs[4].tabulate_dof_coordinates()[:].flatten())
     eta_sort = np.argsort(eta_dofs)
@@ -1431,7 +1422,7 @@ def create_PGD(param={}, vs=[], q_PGD=None, q_coeff=None):
                            Vs=vs, dom_fct=create_dom, bc_fct=create_bc, load=[q_s, q_y, q_z, q_r, q_eta, q_h],
                            param=param, rhs_fct=problem_assemble_rhs, lhs_fct=problem_assemble_lhs,
                            probs=['s', 'y', 'z', 'r', 'eta', 'h'], seq_fp=np.arange(len(vs)),
-                           PGD_nmax=20, PGD_tol=1e-5)
+                           PGD_nmax=50, PGD_tol=1e-5)
 
     pgd_prob.MM = [0, 0, 0, param['M_r'], param['M_eta'], param['M_h']]  # for norms!
 
@@ -1543,23 +1534,23 @@ class Back(dolfin.SubDomain):
 # reference solution class
 class Reference():
 
-    def __init__(self, param={}, vs=[], q=None, pos_fixed=None):
+    def __init__(self, param={}, vs=[], time=[], q=None, pos_fixed=None):
 
         self.vs = vs # Location
         self.param = param # Parameters
         self.q = q # source term
 
         # time points
-        self.time_mesh = self.vs[1].mesh().coordinates()[:]
-        self.T_n = dolfin.interpolate(self.param["Tamb_fct"], self.vs[0])
+        self.time_mesh = time
+        self.T_n = dolfin.interpolate(self.param["Tamb_fct"], self.vs)
         self.T_n.vector()[:] *= self.param['T_ref']
-        self.Tamb = dolfin.Function(self.vs[0])
+        self.Tamb = dolfin.Function(self.vs)
         self.Tamb.vector()[:] = 1 * self.T_n.vector()[:]
 
         # problem
-        self.mesh = self.vs[0].mesh()
-        T = dolfin.TrialFunction(self.vs[0])
-        v = dolfin.TestFunction(self.vs[0])
+        self.mesh = self.vs.mesh()
+        T = dolfin.TrialFunction(self.vs)
+        v = dolfin.TestFunction(self.vs)
         self.dt = dolfin.Constant(1.)
         self.Q = dolfin.Constant(1.)
         self.h = dolfin.Constant(1.)
@@ -1607,11 +1598,11 @@ class Reference():
 
         # Time-stepping
         Ttime = []
-        Ttmp = dolfin.Function(self.vs[0])
+        Ttmp = dolfin.Function(self.vs)
         Ttmp.vector()[:] = 1 * self.T_n.vector()[:]
         Ttime.append(Ttmp)  # otherwise it will be overwritten with new solution
         Txfixed = [np.copy(self.T_n(self.pos_fixed))]
-        T = dolfin.Function(self.vs[0])
+        T = dolfin.Function(self.vs)
         problem_FEM = dolfin.LinearVariationalProblem(self.a, self.L, T, form_compiler_parameters={"optimize": True})
         solver = dolfin.LinearVariationalSolver(problem_FEM)
         prm = solver.parameters
@@ -1619,15 +1610,15 @@ class Reference():
         prm["preconditioner"] = "amg"
         for i in range(len(self.time_mesh)-1):
             print('solve for t: ', self.time_mesh[i+1])
-            self.dt.assign(self.time_mesh[i+1][0]-self.time_mesh[i][0])
-            self.q.t = self.time_mesh[i][0]
+            self.dt.assign(self.time_mesh[i+1]-self.time_mesh[i])
+            self.q.t = self.time_mesh[i]
             # Compute solution
             solver.solve()
             # Update previous solution
             self.T_n.assign(T)
 
             # store solution
-            Ttmp = dolfin.Function(self.vs[0])
+            Ttmp = dolfin.Function(self.vs)
             Ttmp.vector()[:] = 1 * T.vector()[:]
             Ttime.append(Ttmp)
             Txfixed.append(np.copy(T(self.pos_fixed)))
@@ -1653,9 +1644,9 @@ class problem(unittest.TestCase):
         #                     'r_ref': 1,
         #                     'h_ref': 1, 'T_ref': 1})
         self.param.update({'x_ref': self.param['L'], 'y_ref': self.param['W'], 'z_ref': self.param['H'],
-                            't_ref': self.param['t_max']-self.param["r_0"]/self.param["vel"],
-                            'r_ref': self.param["vel"]*self.param["t_max"]-self.param["r_0"],
-                            'h_ref': self.param['h_max'], 'T_ref': 500})
+                           't_ref': self.param['t_max']-self.param["r_0"]/self.param["vel"],
+                           'r_ref': self.param["vel"]*self.param["t_max"]-self.param["r_0"],
+                           'h_ref': self.param['h_max'], 'T_ref': 500})
 
         # del_dim = self.param['T_ref'] * self.param['rho'] * self.param['c_p']
         del_dim = 1.0
@@ -1666,13 +1657,20 @@ class problem(unittest.TestCase):
         self.param['a_x2'] = self.param['T_ref'] / (self.param['x_ref']**2 * del_dim)
         self.param['a_y2'] = self.param['T_ref'] / (self.param['y_ref']**2 * del_dim)
         self.param['a_z2'] = self.param['T_ref'] / (self.param['z_ref']**2 * del_dim)
-        self.param['a_conv_xy'] = self.param['T_ref'] * self.param['x_ref'] * self.param['y_ref'] / del_dim
-        self.param['a_conv_xz'] = self.param['T_ref'] * self.param['x_ref'] * self.param['z_ref'] / del_dim
-        self.param['a_conv_yz'] = self.param['T_ref'] * self.param['y_ref'] * self.param['z_ref'] / del_dim
+        # self.param['a_conv_xy'] = self.param['T_ref'] * self.param['x_ref'] * self.param['y_ref'] / del_dim
+        # self.param['a_conv_xz'] = self.param['T_ref'] * self.param['x_ref'] * self.param['z_ref'] / del_dim
+        # self.param['a_conv_yz'] = self.param['T_ref'] * self.param['y_ref'] * self.param['z_ref'] / del_dim
+        # self.param['l1'] = 1.0 / del_dim
+        # self.param['l2_xy'] = self.param['x_ref'] * self.param['y_ref'] / (self.param['T_ref'] * del_dim)
+        # self.param['l2_xz'] = self.param['x_ref'] * self.param['z_ref'] / (self.param['T_ref'] * del_dim)
+        # self.param['l2_yz'] = self.param['y_ref'] * self.param['z_ref'] / (self.param['T_ref'] * del_dim)
+        self.param['a_conv_xy'] = self.param['T_ref'] / del_dim
+        self.param['a_conv_xz'] = self.param['T_ref'] / del_dim
+        self.param['a_conv_yz'] = self.param['T_ref'] / del_dim
         self.param['l1'] = 1.0 / del_dim
-        self.param['l2_xy'] = self.param['x_ref'] * self.param['y_ref'] / (self.param['T_ref'] * del_dim)
-        self.param['l2_xz'] = self.param['x_ref'] * self.param['z_ref'] / (self.param['T_ref'] * del_dim)
-        self.param['l2_yz'] = self.param['y_ref'] * self.param['z_ref'] / (self.param['T_ref'] * del_dim)
+        self.param['l2_xy'] = 1.0 / (self.param['T_ref'] * del_dim)
+        self.param['l2_xz'] = 1.0 / (self.param['T_ref'] * del_dim)
+        self.param['l2_yz'] = 1.0 / (self.param['T_ref'] * del_dim)
 
         # global parameters
         self.ord = 1  # order for each mesh
@@ -1689,17 +1687,19 @@ class problem(unittest.TestCase):
                            [0., self.param["W"]],                                         # ymin, ymax
                            [0., self.param["H"]],                                         # zmin, zmax
                            [(self.param["r_0"]/self.param["vel"]),
-                            (self.param["t_max"]-self.param["r_0"]/self.param["vel"])]]   # tmin, tmax
+                            self.param["t_end"]]]   # tmin, tmax
         self.num_elem_PGD = [1000,  # number of elements in s
                              1000,  # number of elements in y
                              100,  # number of elements in z
                              1000,  # number of elements in r
                              100,  # number of elements in eta
                              100]  # number of elements in h
-        self.num_elem_FEM = [50,  # number of elements in x
-                             50,  # number of elements in y
-                             5,  # number of elements in z
-                             100]  # number of elements in t
+        self.num_elem_FEM = [200,  # number of elements in x
+                             200,  # number of elements in y
+                             20,  # number of elements in z
+                             200]  # number of elements in t
+
+        self.param['turnOff'] = self.param["t_max"]-self.param["r_0"]/self.param["vel"]
 
         # evaluation parameters
         self.t_fixed = 0.9 * self.param['t_max'] / self.param['t_ref']
@@ -1720,10 +1720,11 @@ class problem(unittest.TestCase):
         self.q_coeff = 6 * np.sqrt(3) / ((self.param["af"]+self.param["af"]) * self.param["b"] * self.param["c"] * np.pi**(3/2))
 
         # q Goldak
-        self.q_FEM = dolfin.Expression('x[0] >= vel*t+hg/2 ? 0 : x[0] <= vel*t-hg/2 ? 0 : \
+        self.q_FEM = dolfin.Expression('x[0] > turnOff ? 0 : x[0] >= vel*t+hg/2 ? 0 : x[0] <= vel*t-hg/2 ? 0 : \
                                         coeff * exp(-3*(pow(x[0]-vel*t,2)/pow(af,2) + pow(x[1]-yc,2)/pow(b,2) + pow(x[2]-zc,2)/pow(c,2)))',
                                        degree=4, coeff=self.q_coeff, af=self.param['af'], b=self.param['b'], c=self.param['c'],
-                                       vel=self.param["vel"], hg=self.param["h_g"], yc=self.param['W']/2, zc=self.param['H'], t=0)
+                                       vel=self.param["vel"], hg=self.param["h_g"], yc=self.param['W']/2, zc=self.param['H'],
+                                       turnOff = self.param['turnOff'], t=0)
         self.q_PGD = [dolfin.Expression('exp(-3*pow((x[0]-1.5)*h_g,2)/pow(af,2))', degree=4, af=self.param["af"], h_g=self.param["h_g"]),
                       dolfin.Expression('exp(-3*pow(x[0]*yref-yc,2)/pow(b,2))', degree=4, b=self.param["b"], yc=self.param["W"]/2, yref=self.param['y_ref']),
                       dolfin.Expression('exp(-3*pow(x[0]*zref-zc,2)/pow(c,2))', degree=4, c=self.param["c"], zc=self.param["H"], zref=self.param['z_ref'])]
@@ -1739,26 +1740,26 @@ class problem(unittest.TestCase):
         self.param['IC_h'] = dolfin.Expression('1.0', degree=1)
 
         # MESH
-        meshes_FEM, vs_FEM = create_meshes_FEM(self.num_elem_FEM, self.ords, self.ranges_FEM)
+        vs_FEM, time_FEM = create_meshes_FEM(self.num_elem_FEM, self.ords, self.ranges_FEM, self.param)
         meshes_PGD, vs_PGD = create_meshes_PGD(self.num_elem_PGD, self.ords, self.ranges_PGD)
 
         # PGD
         pgd_fd, param = create_PGD(param=self.param, vs=vs_PGD, q_PGD=self.q_PGD, q_coeff=self.q_coeff)
 
-        # cooling
-        from thermo_3D_dimless_convection_cooling import PgdCooling
-        pgd_cooling, param_cool = PgdCooling(pgd_fd, self.param)(self.pos_fixed, self.t_fixed, self.eta_fixed, self.h_fixed)
-        cool_sol = pgd_cooling.evaluate(3, [0, 1, 2, 4, 5], [self.pos_fixed[0], self.pos_fixed[1], self.pos_fixed[2], self.eta_fixed, self.h_fixed], 0)
-
-        # FEM reference solution
-        u_fem, u_fem2 = Reference(param=self.param, vs=vs_FEM, q=self.q_FEM, pos_fixed=self.pos_fixed)(
-            [self.t_fixed, self.eta_fixed, self.h_fixed])
-
         # PGD solution at fixed place over time
         upgd_fd2, time_PGD = remapping(pgd_fd, self.param, self.pos_fixed, self.eta_fixed, self.h_fixed)
 
+        # cooling
+        from thermo_3D_dimless_convection_cooling import PgdCooling
+        cool_sol, param_cool, vs_cool = PgdCooling(pgd_fd, self.param, vs_PGD)(self.pos_fixed, self.t_fixed, self.eta_fixed, self.h_fixed)
+        # cool_sol[0] += upgd_fd2[-1]
+
+        # FEM reference solution
+        u_fem, u_fem2 = Reference(param=self.param, vs=vs_FEM, time=time_FEM, q=self.q_FEM, pos_fixed=self.pos_fixed)(
+            [self.t_fixed, self.eta_fixed, self.h_fixed])
+
         # error computation
-        errors_FEM = np.linalg.norm(np.interp(meshes_FEM[1].coordinates()[:],
+        errors_FEM = np.linalg.norm(np.interp(time_FEM,
                                               time_PGD * self.param['r_ref'], upgd_fd2 * self.param['T_ref']) - u_fem2) / np.linalg.norm(u_fem2)  # PGD FD - FEM
         print('rel error over time: ', errors_FEM)
 
@@ -1767,18 +1768,10 @@ class problem(unittest.TestCase):
             import matplotlib.pyplot as plt
 
             plt.figure()
-            plt.plot(meshes_FEM[1].coordinates()[:], np.array(u_fem2), '-og', label='FEM')
-            plt.plot(time_PGD * self.param['r_ref'], upgd_fd2 * self.param['T_ref'], '-*r', label='PGD FD')
+            plt.plot(time_FEM, np.array(u_fem2), '-og', label='FEM')
+            plt.plot(time_PGD * self.param['r_ref'], upgd_fd2 * self.param['T_ref'], '-*r', label='PGD heat')
+            plt.plot(vs_cool[3].mesh().coordinates()[:] * param_cool['t_ref_cool'], cool_sol * param_cool['T_ref'], '-*b', label='PGD cool')
             plt.title(f"PGD solution at [x,eta,h]={self.pos_fixed[0]*self.param['x_ref']},{self.eta_fixed},{self.h_fixed*self.param['h_ref']} over time")
-            plt.xlabel("time t [s]")
-            plt.ylabel("Temperature T [°C]")
-            plt.legend()
-            plt.draw()
-            plt.show()
-
-            plt.figure()
-            plt.plot(pgd_cooling.mesh[3].dataX[:] * param_cool['t_ref_cool'], cool_sol * param_cool['T_ref'], '-*b', label='PGD FD')
-            plt.title('cooling phase')
             plt.xlabel("time t [s]")
             plt.ylabel("Temperature T [°C]")
             plt.legend()
