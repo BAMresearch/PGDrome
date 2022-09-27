@@ -254,8 +254,6 @@ def create_PGD(param={}, vs=[], q=None, _type=None):
     q_x = dolfin.interpolate(q, vs[0])
     q_t = dolfin.interpolate(dolfin.Expression('1.0', degree=1),vs[1])
     q_q = dolfin.interpolate(dolfin.Expression('x[0]*Q', Q=param['Q'], degree=1), vs[2])
-    # print('q_x',q_x.compute_vertex_values()[:])
-    # input()
 
     if _type == 'FEM':
         ass_rhs = problem_assemble_rhs_FEM
@@ -290,10 +288,10 @@ def create_PGD(param={}, vs=[], q=None, _type=None):
 
     pgd_prob.stop_fp = 'norm'
     pgd_prob.max_fp_it = 50
-    pgd_prob.tol_fp_it = 1e-5 #1e-5
+    pgd_prob.tol_fp_it = 1e-5
     # pgd_prob.fp_init = 'randomized'
     pgd_prob.norm_modes = 'stiff'
-    pgd_prob.PGD_tol = 1e-5 # 1e-9 as stopping criterion
+    pgd_prob.PGD_tol = 1e-5  # 1e-9 as stopping criterion
 
 
     pgd_prob.solve_PGD(_problem='linear', solve_modes=solve_modes)
@@ -307,13 +305,13 @@ def create_PGD(param={}, vs=[], q=None, _type=None):
 
 
 # reference model FEM in space and backward euler in time
-class Reference():
+class Reference:
     
     def __init__(self, param={}, vs=[], q=None, x_fixed=None):
         
-        self.vs = vs # Location
-        self.param = param # Parameters
-        self.q = q # source term
+        self.vs = vs  # Location
+        self.param = param  # Parameters
+        self.q = q  # source term
 
         # time points
         self.time_mesh = self.vs[1].mesh().coordinates()[:]
@@ -334,7 +332,7 @@ class Reference():
     def __call__(self, values):
 
         # check time mesh for requested time value
-        if np.where(self.time_mesh == values[0])[0] == []:
+        if not np.where(self.time_mesh == values[0])[0]:
             print("ERROR time step not in mesh What to do?")
         self.Q.assign(values[1]*self.param["Q"])
         
@@ -342,11 +340,10 @@ class Reference():
         Ttime = []
         Ttmp = dolfin.Function(self.vs[0])
         Ttmp.vector()[:] = 1 * self.T_n.vector()[:]
-        Ttime.append(Ttmp) # otherwise it will be overwritten with new solution
+        Ttime.append(Ttmp)  # otherwise it will be overwritten with new solution
         Txfixed = [np.copy(self.T_n(self.fixed_x))]
         T = dolfin.Function(self.vs[0])
         for i in range(len(self.time_mesh)-1):
-            print('solve for t: ',self.time_mesh[i+1])
             self.dt.assign(self.time_mesh[i+1]-self.time_mesh[i])
             # Compute solution
             a, L = dolfin.lhs(self.F), dolfin.rhs(self.F)
@@ -360,7 +357,7 @@ class Reference():
             Ttime.append(Ttmp)
             Txfixed.append(np.copy(T(self.fixed_x)))
             
-        return Ttime, Txfixed # solution in time over x and time solution at fixed x
+        return Ttime, Txfixed  # solution in time over x and time solution at fixed x
 
  
 # test problem
@@ -369,28 +366,30 @@ class problem(unittest.TestCase):
     def setUp(self):
         
         # global parameters
-        self.param = {"rho": 1, "cp": 1, "k": 0.5, 'Tamb':25, 'Q': 1, 'af':0.2, 'ar':0.2, 'xc':0.5, 'lx':1, 'lt':1} #-comparable matlab code proofed (coarse mesh)
+        self.param = {"rho": 1, "cp": 1, "k": 0.5, 'Tamb': 25, 'Q': 1,
+                      'af': 0.2, 'ar': 0.2, 'xc': 0.5, 'lx': 1, 'lt': 1}  #-comparable matlab code proofed (coarse mesh)
 
-        #self.param = {"rho": 7100, "cp": 3100, "k": 100, 'Q': 5000, 'Tamb': 25, 'af': 0.02, 'ar': 0.02, 'xc': 0.05,
-        #              'lx': 0.1, 'lt': 10} #geht noch feineres mesh nötig
-        #self.param = {"rho": 7100, "cp": 3100, "k": 100, 'Q': 100, 'Tamb':25, 'af':0.002, 'ar':0.002, 'xc':0.05, 'lx':0.1, 'lt':10}  #geht noch feineres mesh nötig
+        # self.param = {"rho": 7100, "cp": 3100, "k": 100, 'Q': 5000, 'Tamb': 25,
+        #               'af': 0.02, 'ar': 0.02, 'xc': 0.05, 'lx': 0.1, 'lt': 10}  # finer mesh needed
+        # self.param = {"rho": 7100, "cp": 3100, "k": 100, 'Q': 100, 'Tamb': 25,
+        #               'af': 0.002, 'ar': 0.002, 'xc': 0.05, 'lx': 0.1, 'lt': 10}  # finer mesh needed
 
         self.ranges = [[0., self.param['lx']],  # xmin, xmax
                        [0., self.param['lt']],  # tmin, tmax
-                       [0.5, 1.0]]  # qmin, qmax
+                       [0.5, 1.0]]              # qmin, qmax
 
         self.ords = [1, 1, 1]  # x, t, q
         self.elems = [15, 10, 10]
-        #self.elems = [500, 100, 10]
+        # self.elems = [500, 100, 10]
 
         # evaluation parameters
         self.fixed_dim = 0
-        self.t_fixed = 0.9*self.param['lt'] #0.9  # test evaluation[t,q]
+        self.t_fixed = 0.9*self.param['lt']
         self.q_fixed = 1.
-        self.x_fixed = 0.5*self.param['lx'] #0.5
+        self.x_fixed = 0.5*self.param['lx']
 
-        self.plotting = True
-        # self.plotting = False
+        # self.plotting = True
+        self.plotting = False
         
     def TearDown(self):
         pass
@@ -398,18 +397,11 @@ class problem(unittest.TestCase):
     def test_heating(self):
         # #case heating
         ff = 6*np.sqrt(3) / ((self.param["af"]+self.param["ar"])*self.param["af"]*self.param["af"]*np.pi**(3/2))
-        print("ff",ff)
-        self.q = dolfin.Expression('ff* exp(-3*(pow(x[0]-xc,2)/pow(af,2)))', \
-                                   degree=4,ff=ff,af=self.param['af'],ar=self.param['ar'],xc=self.param['xc']) # expression for q(x) independent from time
+        self.q = dolfin.Expression('ff* exp(-3*(pow(x[0]-xc,2)/pow(af,2)))',
+                                   degree=4, ff=ff, af=self.param['af'], ar=self.param['ar'], xc=self.param['xc'])
 
-        #self.q = dolfin.Expression('6 * sqrt(3) / ((af + ar) * af * af * pow(pi, 3 / 2)) * exp(-3*(pow(x[0]-xc,2)/pow(af,2)))', \
-        #                           degree=1, af=self.param['af'], ar=self.param['ar'],
-        #                           xc=self.param['xc'])  # expression for q(x) - somehow not working right
-
-        self.param['Tamb_fct'] = dolfin.Expression('Tamb', degree=1, Tamb=self.param["Tamb"]) #initial condition FEM
+        self.param['Tamb_fct'] = dolfin.Expression('Tamb', degree=1, Tamb=self.param["Tamb"])  #initial condition FEM
         self.param['IC_t'] = self.param['Tamb_fct']
-        # self.param['IC_t'] = dolfin.Expression('Tamb*(1-1/1*x[0])', degree=1, Tamb=param["Tamb"])
-        # self.param['IC_t'] = dolfin.Expression('x[0]<0+1e-3 ? Tamb : 0', degree=1, Tamb=param["Tamb"])
         self.param['IC_x'] = dolfin.Expression('1.0', degree=1)
         self.param['IC_q'] = dolfin.Expression('1.0', degree=1)
         
@@ -417,8 +409,7 @@ class problem(unittest.TestCase):
         meshes, vs = create_meshes(self.elems, self.ords, self.ranges)
         
         # PGD
-        # pgd_fem, param = create_PGD(param=self.param,vs=vs, q=self.q, _type="FEM")
-        #
+        pgd_fem, param = create_PGD(param=self.param, vs=vs, q=self.q, _type="FEM")
         pgd_fd, param = create_PGD(param=self.param, vs=vs, q=self.q, _type="FDtime")
 
         # error at given values:
@@ -427,33 +418,32 @@ class problem(unittest.TestCase):
         u_fem, u_fem2 = Reference(param=self.param, vs=vs, q=self.q, x_fixed=self.x_fixed)(
             [self.ranges[1][1], self.q_fixed])
 
-        # upgd_fem = pgd_fem.evaluate(self.fixed_dim, [1, 2], [self.t_fixed,self.q_fixed], 0)
-        # upgd_fem_bc = upgd_fem.compute_vertex_values()[:] + \
-        #              param['IC_x'].compute_vertex_values()[:] * param['IC_t'](self.t_fixed) * param["IC_q"](
-        #    self.q_fixed)
+        upgd_fem = pgd_fem.evaluate(self.fixed_dim, [1, 2], [self.t_fixed,self.q_fixed], 0)
+        upgd_fem_bc = upgd_fem.compute_vertex_values()[:] + \
+                     param['IC_x'].compute_vertex_values()[:] * param['IC_t'](self.t_fixed) * param["IC_q"](
+           self.q_fixed)
 
         upgd_fd = pgd_fd.evaluate(self.fixed_dim, [1, 2], [self.t_fixed, self.q_fixed], 0)
         upgd_fd_bc = upgd_fd.compute_vertex_values()[:] + \
                      param['IC_x'].compute_vertex_values()[:] * param['IC_t'](self.t_fixed) * param["IC_q"](
             self.q_fixed)
-        print('upgd_fd', upgd_fd_bc)
 
         errors_FEM11 = np.linalg.norm(upgd_fd_bc - u_fem[tidx].compute_vertex_values()[:]) / np.linalg.norm(u_fem[tidx].compute_vertex_values()[:])  # PGD FD - FEM
-        # errors_FEM21 = np.linalg.norm(upgd_fem_bc - u_fem[tidx].compute_vertex_values()[:]) / np.linalg.norm(u_fem[tidx].compute_vertex_values()[:])  # PGD FEM - FEM
+        errors_FEM12 = np.linalg.norm(upgd_fem_bc - u_fem[tidx].compute_vertex_values()[:]) / np.linalg.norm(u_fem[tidx].compute_vertex_values()[:])  # PGD FEM - FEM
         print('error in space', errors_FEM11)
 
         # solution at fixed place over time
-        # upgd_fem2 = pgd_fem.evaluate(1, [0, 2], [self.x_fixed,self.q_fixed], 0)
-        # upgd_fem2_bc = upgd_fem2.compute_vertex_values()[:] + \
-        #              param['IC_x'](self.x_fixed) * param['IC_t'].compute_vertex_values()[:] * param["IC_q"](
-        #    self.q_fixed)
+        upgd_fem2 = pgd_fem.evaluate(1, [0, 2], [self.x_fixed,self.q_fixed], 0)
+        upgd_fem2_bc = upgd_fem2.compute_vertex_values()[:] + \
+                     param['IC_x'](self.x_fixed) * param['IC_t'].compute_vertex_values()[:] * param["IC_q"](
+           self.q_fixed)
         upgd_fd2 = pgd_fd.evaluate(1, [0, 2], [self.x_fixed, self.q_fixed], 0)
         upgd_fd2_bc = upgd_fd2.compute_vertex_values()[:] + \
                       param['IC_x'](self.x_fixed) * param['IC_t'].compute_vertex_values()[:] * param["IC_q"](
             self.q_fixed)
 
         errors_FEM21 = np.linalg.norm(upgd_fd2_bc - u_fem2) / np.linalg.norm(u_fem2)  # PGD FD - FEM
-        # errors_FEM22 = np.linalg.norm(upgd_fem2_bc - u_fem2) / np.linalg.norm(u_fem2)  # PGD FEM - FEM
+        errors_FEM22 = np.linalg.norm(upgd_fem2_bc - u_fem2) / np.linalg.norm(u_fem2)  # PGD FEM - FEM
         print('error in time', errors_FEM21)
 
         if self.plotting:
@@ -463,8 +453,8 @@ class problem(unittest.TestCase):
             # Temperature over space at specific time
             plt.figure(1)
             plt.plot(meshes[0].coordinates()[:], u_fem[tidx].compute_vertex_values()[:], '-or', label=f'FEM')
-            #plt.plot(upgd_fem.function_space().mesh().coordinates()[:], upgd_fem_bc, '-*b',
-            #         label=f"PGD FEM t end")
+            plt.plot(upgd_fem.function_space().mesh().coordinates()[:], upgd_fem_bc, '-*b',
+                    label=f"PGD FEM t end")
             plt.plot(upgd_fd.function_space().mesh().coordinates()[:], upgd_fd_bc, '-*g',
                      label=f"PGD FDtime t end")
             plt.title(f"PGD solution over space")
@@ -474,7 +464,7 @@ class problem(unittest.TestCase):
 
             plt.figure(2)
             plt.plot(meshes[1].coordinates()[:], u_fem2, '-or', label='FEM')
-            #plt.plot(meshes[1].coordinates()[:], upgd_fem2_bc, '-*b', label='PGD FEM')
+            plt.plot(meshes[1].coordinates()[:], upgd_fem2_bc, '-*b', label='PGD FEM')
             plt.plot(meshes[1].coordinates()[:], upgd_fd2_bc, '-*g', label='PGD FD')
             plt.title(f"PGD solution at [x,q]={self.x_fixed},{self.q_fixed} over time")
             plt.xlabel("time t [m]")
@@ -484,9 +474,11 @@ class problem(unittest.TestCase):
             plt.draw()
             plt.show()
 
-        # for mesh discr: [15, 10, 10] //  and first parameter set
-        self.assertTrue(errors_FEM11 < 1e-3) #1e-6
-        self.assertTrue(errors_FEM21 < 1e-2) #5e-4
+        # for mesh discr: [15, 10, 10] //  and first parameter set. Finer mesh leads to lower errors
+        self.assertTrue(errors_FEM11 < 1e-3)  # 1e-6
+        self.assertTrue(errors_FEM21 < 1e-2)  # 5e-4
+        self.assertTrue(errors_FEM12 < 1e-3)  # 1e-6
+        self.assertTrue(errors_FEM22 < 1e-2)  # 5e-4
 
     def test_cooling(self):
         # case cooling!
@@ -551,10 +543,10 @@ class problem(unittest.TestCase):
             plt.xlabel("time t [m]")
             plt.ylabel("Temperature T [°C]")
             plt.legend()
-    #
+
             plt.draw()
             plt.show()
-    #
+
         # for mesh discr: [15, 10, 10] and first parameter set!
         self.assertTrue(errors_FEM11 < 1e-6)
         self.assertTrue(errors_FEM21 < 5e-6)

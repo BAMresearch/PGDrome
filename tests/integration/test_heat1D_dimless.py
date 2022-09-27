@@ -170,8 +170,6 @@ def create_PGD(param={}, vs=[], q=None):
     q_x = dolfin.interpolate(q, vs[0])
     q_t = dolfin.interpolate(dolfin.Expression('1.0', degree=1),vs[1])
     q_q = dolfin.interpolate(dolfin.Expression('x[0]*Q', Q=param['Q'], degree=1), vs[2])
-    # print('q_x',q_x.compute_vertex_values()[:])
-    # input()
 
     # create FD matrices from meshes
     t_dofs = np.array(vs[1].tabulate_dof_coordinates()[:].flatten())
@@ -194,10 +192,10 @@ def create_PGD(param={}, vs=[], q=None):
 
     pgd_prob.stop_fp = 'norm'
     pgd_prob.max_fp_it = 50
-    pgd_prob.tol_fp_it = 1e-5 #1e-5
+    pgd_prob.tol_fp_it = 1e-5
     # pgd_prob.fp_init = 'randomized'
     pgd_prob.norm_modes = 'stiff'
-    pgd_prob.PGD_tol = 1e-9 #as stopping criterion
+    pgd_prob.PGD_tol = 1e-9  # as stopping criterion
 
 
     pgd_prob.solve_PGD(_problem='linear', solve_modes=solve_modes)
@@ -238,7 +236,7 @@ class Reference():
     def __call__(self, values):
 
         # check time mesh for requested time value
-        if np.where(self.time_mesh == values[0])[0] == []:
+        if not np.where(self.time_mesh == values[0])[0]:
             print("ERROR time step not in mesh What to do?")
         self.Q.assign(values[1]*self.param["Q"])
         
@@ -250,7 +248,6 @@ class Reference():
         Txfixed = [np.copy(self.T_n(self.fixed_x))]
         T = dolfin.Function(self.vs[0])
         for i in range(len(self.time_mesh)-1):
-            print('solve for t: ',self.time_mesh[i+1])
             self.dt.assign(self.time_mesh[i+1]-self.time_mesh[i])
             # Compute solution
             a, L = dolfin.lhs(self.F), dolfin.rhs(self.F)
@@ -266,7 +263,7 @@ class Reference():
             if self.time_mesh[i+1] == values[0]:
                 break
             
-        return Ttime, Txfixed # solution in time over x and time solution at fixed x
+        return Ttime, Txfixed  # solution in time over x and time solution at fixed x
 
  
 # test problem
@@ -275,30 +272,31 @@ class problem(unittest.TestCase):
     def setUp(self):
         
         # global parameters
-        #self.param = {"rho": 7100, "cp": 3100, "k": 100, 'Q': 5000, 'Tamb': 25, 'af': 0.02, 'ar': 0.02, 'xc': 0.05,
-        #              'lx': 0.1, 'lt': 10} #geht noch feineres mesh nötig
-        self.param = {"rho": 7100, "cp": 3100, "k": 100, 'Q': 100, 'Tamb':25, 'af':0.002, 'ar':0.002, 'xc':0.05, 'lx':0.1, 'lt':10}
+        # self.param = {"rho": 7100, "cp": 3100, "k": 100, 'Q': 5000, 'Tamb': 25,
+        #               'af': 0.02, 'ar': 0.02, 'xc': 0.05, 'lx': 0.1, 'lt': 10}
+        self.param = {"rho": 7100, "cp": 3100, "k": 100, 'Q': 100, 'Tamb': 25,
+                      'af': 0.002, 'ar': 0.002, 'xc': 0.05, 'lx': 0.1, 'lt': 10}
 
          # possiblity to make the equation dimless
         self.factors_o = {'x_0': 0.1, 't_0': 10., 'T_0': 500}
         self.ranges = [[0., self.param['lx'] / self.factors_o['x_0']],  # xmin, xmax
                        [0., self.param['lt'] / self.factors_o['t_0']],  # tmin, tmax
-                       [0.5, 1.0]]  # qmin, qmax
-        self.param['a1']=self.factors_o['T_0']/self.factors_o['t_0']
-        self.param['a2']=self.factors_o['T_0']/self.factors_o['x_0']**2
-        self.param['b']=1.0
+                       [0.5, 1.0]]                                      # qmin, qmax
+        self.param['a1'] = self.factors_o['T_0']/self.factors_o['t_0']
+        self.param['a2'] = self.factors_o['T_0']/self.factors_o['x_0']**2
+        self.param['b'] = 1.0
 
         self.ords = [1, 1, 1]  # x, t, q
         self.elems = [500, 100, 10]
 
         # evaluation parameters
         self.fixed_dim = 0
-        self.t_fixed = 0.9*self.param['lt']/self.factors_o['t_0'] #vorletzter
+        self.t_fixed = 0.9*self.param['lt']/self.factors_o['t_0']  # second last
         self.q_fixed = 1.
-        self.x_fixed = 0.5*self.param['lx']/self.factors_o['x_0'] #0.5
+        self.x_fixed = 0.5*self.param['lx']/self.factors_o['x_0']
 
-        self.plotting = True
-        # self.plotting = False
+        # self.plotting = True
+        self.plotting = False
         
     def TearDown(self):
         pass
@@ -306,9 +304,9 @@ class problem(unittest.TestCase):
     def test_heating(self):
         # #case heating
         ff = 6*np.sqrt(3) / ((self.param["af"]+self.param["ar"])*self.param["af"]*self.param["af"]*np.pi**(3/2))
-        print("ff",ff)
-        self.q = dolfin.Expression('ff* exp(-3*(pow(x[0]*dimf-xc,2)/pow(af,2)))', \
-                                   degree=4,ff=ff,dimf=self.factors_o['x_0'],af=self.param['af'],ar=self.param['ar'],xc=self.param['xc']) # expression for q(x) independent from time
+        self.q = dolfin.Expression('ff* exp(-3*(pow(x[0]*dimf-xc,2)/pow(af,2)))',
+                                   degree=4, ff=ff, dimf=self.factors_o['x_0'], af=self.param['af'],
+                                   ar=self.param['ar'], xc=self.param['xc'])  # expression for q(x) independent from time
 
         self.param['Tamb_fct'] = dolfin.Expression('Tamb', degree=1, Tamb=self.param["Tamb"]/self.factors_o['T_0']) #initial condition FEM
         self.param['IC_t'] = self.param['Tamb_fct']
@@ -330,7 +328,6 @@ class problem(unittest.TestCase):
         upgd_fd_bc = upgd_fd.compute_vertex_values()[:] + \
                      param['IC_x'].compute_vertex_values()[:] * param['IC_t'](self.t_fixed) * param["IC_q"](
             self.q_fixed)
-        # print('upgd_fd', upgd_fd_bc)
 
         errors_FEM11 = np.linalg.norm(upgd_fd_bc - u_fem[tidx].compute_vertex_values()[:]) / np.linalg.norm(
             u_fem[tidx].compute_vertex_values()[:])  # PGD FD - FEM
@@ -368,6 +365,9 @@ class problem(unittest.TestCase):
 
             plt.draw()
             plt.show()
+
+        self.assertTrue(errors_FEM11 < 1e-3)
+        self.assertTrue(errors_FEM21 < 1e-3)
 
         
 if __name__ == '__main__':
