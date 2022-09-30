@@ -1,14 +1,16 @@
 '''
-    2D Laplace problem with given source term
+    2D Laplace problem LX x LY with given source term
     PGD variables: space: x, y, source amplitude q, bc value u0
 
-    problem:   strong form -k(\partial^2 T/\partial x^2 + \partial^2 T/\partial y²) = Q
-               weak form: \int partial T^*/\partial x  k \partial T/\partial x + partial T^*/\partial y k \partial T/\partial y) dV = \int T^* Q dV
+    problem:   strong form -k*( partial^2(T)/partial(x^2) + partial^2(T)/partial(y^2) ) = Q
+               weak form: int[ partial(T^*) / partial(x) k partial(T)/partial(x) + partial(T^*)/partial(y)  k partial(T)/partial(y) ]dV = int[ T^* Q ]dV
 
-                T(x_0) = (1-1/3x) u0 for x_0 in [0, lX]
+                T(x_0) = (1-1/3x) u0 for x_0 = 0 and lX
                 Q(x,y,q,u0) = (1 if x<L/2 \\ 0 if x>L/2) * q
 
     PGD approach: T=sum F(x)F(y)F(q)F(u0)
+
+    checking FD and FEM implementation
 
     Reason:
     compare pgdrome module with matlab code from Ghnatios
@@ -20,7 +22,7 @@ import unittest
 import dolfin as df
 import numpy as np
 
-from pgdrome.solver import PGDProblem1, FD_matrices
+from pgdrome.solver import PGDProblem, FD_matrices
 from pgdrome.model import PGDErrorComputation
 
 def create_meshes(num_elem, ord, ranges):
@@ -422,12 +424,12 @@ def create_PGD(param=[], vs=[], _type=None):
             solve_modes = None
             print('not a valid type')
 
-        pgd_prob = PGDProblem1(name='test_x_y_q_u00', name_coord=['X', 'Y', 'q', 'u0'],
-                               modes_info=['T', 'Node', 'Scalar'],
-                               Vs=vs, dom=0, bc_fct=create_bc, load=[qx, qy, qq, qu0],
-                               param=param, rhs_fct=ass_rhs,
-                               lhs_fct=ass_lhs, probs=['r', 's', 't', 'u'],
-                               seq_fp=np.arange(len(vs)), PGD_nmax=7)
+        pgd_prob = PGDProblem(name='test_x_y_q_u00', name_coord=['X', 'Y', 'q', 'u0'],
+                              modes_info=['T', 'Node', 'Scalar'],
+                              Vs=vs, dom=0, bc_fct=create_bc, load=[qx, qy, qq, qu0],
+                              param=param, rhs_fct=ass_rhs,
+                              lhs_fct=ass_lhs, probs=['r', 's', 't', 'u'],
+                              seq_fp=np.arange(len(vs)), PGD_nmax=7)
         if _type == 'FD':
             pgd_prob.MM = [param['M_x'], param['M_y'], param['M_q'], param['M_u']] # for norms!
         pgd_prob.stop_fp = 'norm'

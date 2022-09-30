@@ -1,17 +1,19 @@
 '''
     2D linear elastictity PGD example
-        div(sigma) = 0 with sigma = C_E * eps
-        geometry: 1000 x 100
+        div(sigma) = 0 with sigma = C_E * eps (C_E linear elasticity tensor)
+        geometry: Lx=1000 x Ly=100
         boundary: fixed at left side
-        load: at top: first half with 1.5xloadfactor second half 0.5xloadfactor
+        load: at top: first half with F2=1.5xlam_pxp0 second half F1=0.5xlam_pxp0 (lam_p: loadfactor)
         elastic plane strain C(E,nu)
           ||||F2||||||F1|||
         |>-----------------
         |>----------------- Ly
                 Lx
-        with E = lam_E E_0 and F2=lam_p F20/ F1=lam_p F10
-    PGD for displacements with PGD variable: X (x,y space), lam_p (load factor), lam_E (E Module factor), nu (Poission ratio)
-    DGL: \int var_eps C(E,nu) eps dX = \int var_u F2 dX_F2 + \int var_u F1 dX_F1
+        with E = lam_E*E_0 (lam_E: Young's modulus factor))
+
+    PGD for displacements u((x,y),lam_p,lam_E,nu) with PGD variable: X (x,y space), lam_p (load factor), lam_E (E Module factor), nu (Poission ratio)
+
+    DGL: int( var_eps lam_E * C(E,nu) eps ) dX = int( var_u lam_p * f2 ) dX_F2 + int( var_u lam_p * f1 )dX_F1
 
     checking both solver types in pgd solver (linear, nonlinear)
 '''
@@ -21,7 +23,7 @@ import dolfin
 import os
 import numpy as np
 
-from pgdrome.solver import PGDProblem1
+from pgdrome.solver import PGDProblem
 from pgdrome.model import PGDErrorComputation
 
 dolfin.parameters["form_compiler"]["cpp_optimize"] = True
@@ -275,7 +277,7 @@ def main_PGD(vs, params, writeFlag=False, name='PGDsolution', problem='linear', 
         computation of PGD solution for given problem normal
         :param vs: list of function spaces len = num_pgd_var
         :param writeFlag: save files or not
-        :return: PGDModel and PGDProblem1
+        :return: PGDModel and PGDProblem
     '''
 
     PGD_nmax = 7  # PGD enrichment number (max number of PGD modes per coordinate)
@@ -320,12 +322,12 @@ def main_PGD(vs, params, writeFlag=False, name='PGDsolution', problem='linear', 
     load = [[g1_1, g1_2, g1_3, g1_4], [g2_1, g2_2, g2_3, g2_4]]
 
     # PGDProblem class
-    pgd_prob = PGDProblem1(name='PGD_xpEv', name_coord=['X', 'P', 'E', 'nu'],
-                           modes_info=['U', 'Node', 'Vector'],
-                           Vs=vs, bc_fct=create_bc, load=load,
-                           param=params, dom_fct=create_dom,
-                           rhs_fct=problem_assemble_rhs, lhs_fct=problem_assemble_lhs,
-                           probs=prob, seq_fp=seq_fp, PGD_nmax=PGD_nmax)
+    pgd_prob = PGDProblem(name='PGD_xpEv', name_coord=['X', 'P', 'E', 'nu'],
+                          modes_info=['U', 'Node', 'Vector'],
+                          Vs=vs, bc_fct=create_bc, load=load,
+                          param=params, dom_fct=create_dom,
+                          rhs_fct=problem_assemble_rhs, lhs_fct=problem_assemble_lhs,
+                          probs=prob, seq_fp=seq_fp, PGD_nmax=PGD_nmax)
 
     # solve displacement problem
     pgd_prob.max_fp_it = 50

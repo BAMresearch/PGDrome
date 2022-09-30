@@ -1252,7 +1252,7 @@ class PGDErrorComputation(object):
         self.lim_smp = lim_samples
         self.fixed_var = fixed_var
         
-        self.free_dim = [item for item in list(range(0, len(self.PGD_sol.problem.meshes))) if item not in fixed_dim]
+        self.free_dim = [item for item in list(range(0, self.PGD_sol.num_pgd_var)) if item not in fixed_dim]
         
     def sampling_LHS(self):
         

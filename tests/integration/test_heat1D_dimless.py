@@ -3,8 +3,8 @@
 
     PGD variables: space: x, time: t, source amplitude q
 
-    problem:    strong form: rho cp \partial T/\partial t - k \partial^2 T/\partial x² = q
-                weak form: \int T^* rho cp \partial T/\partial t dV + \int \partial T^*/\partial x k \partial T/\partial x dV = \int T^* q dV
+    problem:    strong form: rho cp partial(T)/partial(t) - k partial^2(T)/partial(x^2) = q
+                weak form: int[ T^* rho cp partial(T)/partial(t) ] dV + int[ partial(T^*)/partial(x) k partial(T)/partial(x) ] dV = int[ T^* q ] dV
 
                 x=x_dim * l_0 // t=t_dim*t_0 // T=T_dim*T_0
 
@@ -23,7 +23,7 @@ import unittest
 import dolfin
 import numpy as np
 
-from pgdrome.solver import PGDProblem1, FD_matrices
+from pgdrome.solver import PGDProblem, FD_matrices
 
 def create_meshes(num_elem, ord, ranges):
 
@@ -181,12 +181,12 @@ def create_PGD(param={}, vs=[], q=None):
     ass_lhs = problem_assemble_lhs_FDtime
     solve_modes = ["FEM", "FD", "FEM"]
 
-    pgd_prob = PGDProblem1(name='1DHeatEqu-PGD-XTQ', name_coord=['X', 'T', 'Q'],
-                           modes_info=['T', 'Node', 'Scalar'],
-                           Vs=vs, dom=0, bc_fct=create_bc, load=[q_x,q_t,q_q],
-                           param=param, rhs_fct=ass_rhs,
-                           lhs_fct=ass_lhs, probs=['r', 's', 'w'], seq_fp=np.arange(len(vs)),
-                           PGD_nmax=20)
+    pgd_prob = PGDProblem(name='1DHeatEqu-PGD-XTQ', name_coord=['X', 'T', 'Q'],
+                          modes_info=['T', 'Node', 'Scalar'],
+                          Vs=vs, dom=0, bc_fct=create_bc, load=[q_x,q_t,q_q],
+                          param=param, rhs_fct=ass_rhs,
+                          lhs_fct=ass_lhs, probs=['r', 's', 'w'], seq_fp=np.arange(len(vs)),
+                          PGD_nmax=20)
 
     pgd_prob.MM = [0, param['M_t'], 0]  # for norms!
 

@@ -9,9 +9,10 @@
     p = lambda_p * p0 und E = lambda_E*E0
 
     PGD for displacements with PGD variable: X (x space), lam_p (load factor), lam_E (E Module factor)
-    DGL: \int var_eps E A eps dX = \int var_u f dX
+    DGL: int(var_eps E A eps)dX = int(var_u f)dX
 
     compared to analytic solution
+    PGD solution in 1 mode set!
 '''
 
 
@@ -22,7 +23,7 @@ import os
 import numpy as np
 from scipy.stats import qmc
 
-from pgdrome.solver import PGDProblem1
+from pgdrome.solver import PGDProblem
 from pgdrome.model import PGDErrorComputation
 
 def create_meshes(num_elem, ord, ranges):
@@ -129,12 +130,12 @@ def main(vs, writeFlag=False, name=None):
     seq_fp = [0, 1, 2]  # default sequence of Fixed Point iteration
     PGD_nmax = 10       # max number of PGD modes
 
-    pgd_prob = PGDProblem1(name='Uniaxial1D-PGD-XPE', name_coord=['X', 'P', 'E'],
-                           modes_info=['U_x', 'Node', 'Scalar'],
-                           Vs=vs, dom=0, bc_fct=create_bc, load=[g1,g2,g3],
-                           param=param, rhs_fct=problem_assemble_rhs,
-                           lhs_fct=problem_assemble_lhs, probs=prob, seq_fp=seq_fp,
-                           PGD_nmax=PGD_nmax)
+    pgd_prob = PGDProblem(name='Uniaxial1D-PGD-XPE', name_coord=['X', 'P', 'E'],
+                          modes_info=['U_x', 'Node', 'Scalar'],
+                          Vs=vs, dom=0, bc_fct=create_bc, load=[g1,g2,g3],
+                          param=param, rhs_fct=problem_assemble_rhs,
+                          lhs_fct=problem_assemble_lhs, probs=prob, seq_fp=seq_fp,
+                          PGD_nmax=PGD_nmax)
 
     pgd_prob.stop_fp = 'norm' #'chady'
     pgd_prob.max_fp_it = 50

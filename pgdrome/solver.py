@@ -9,7 +9,7 @@ from scipy.sparse import spdiags
 from pgdrome.model import PGD
 
 
-class PGDProblem1:
+class PGDProblem:
 
     def __init__(self, name=None, name_coord=[], modes_info=[], Vs=[], dom_fct=None,
                  bc_fct=None, load=[], param=None, rhs_fct=None, lhs_fct=None,
@@ -90,7 +90,7 @@ class PGDProblem1:
         self.tol_abs = 1e-6 # absolute tolerance of fixed point iteration (norm criterion)
         self.stop_fp = 'norm' # FP break criterion "norm" or "delta"
         self.fp_init = '' # mode initialization " " (=Ones) or "randomized" (=RAND)
-        self.norm_modes = 'l2' # norming of modes "no", "l2" or "stiff"
+        self.norm_modes = 'stiff' # norming of modes "no", "l2" or "stiff"
 
         self.simulation_info = 'PGD solver option: PGD_nmax %s / PGD tolerance %s and max FP iterations %s and FP tolerance %s; \n' % (
         self.PGD_nmax, self.PGD_tol, self.max_fp_it, self.tol_fp_it)
@@ -265,6 +265,7 @@ class PGDProblem1:
             delta = np.ones(self.num_pgd_var)
 
             # check residuum error computed with Fs_init
+            # not exactly the same as in matlab implementation of Ghnatios !! maybe not meaningful
             res=[]
             for dim in range(self.num_pgd_var):
                 if solve_modes is None or solve_modes[dim]==self.solve_mode["FEM"]:
@@ -300,6 +301,7 @@ class PGDProblem1:
             self.logger.debug('update PGD_func: old lenght: %s', len(self.PGD_func[0]))
 
             # normalization and adding new modes different methods possible
+            # default "stiff"
             normU=np.prod(norm_Fs)
             if self.norm_modes.lower()=='no':
                 # no normalization at all
