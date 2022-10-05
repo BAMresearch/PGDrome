@@ -21,26 +21,6 @@ from scipy.stats import qmc
 # set logger
 LOGGER = logging.getLogger(__name__)
 
-try:
-    # import tensorly if possible only needed in reconstruct_solution_tensor
-    import tensorly
-    tensorly.set_backend('numpy')
-except ModuleNotFoundError as e:
-    LOGGER.warning(f'Failed loading tensorly with error: {e}')
-
-try:
-    from fenicstools import Probes
-except ModuleNotFoundError as e:
-    LOGGER.warning(f'Failed loading fenicstools with error: {e}')
-
-
-def ftool_probe(points, function):
-    ''' function from Philipp Diercks to efficiently evaluate fenics functions with fenicstools'''
-    probes = Probes(points.flatten(), function.function_space())
-    probes(function)
-    return probes.array()
-
-
 class PGD:
     '''
         Stores the whole PGD solution incl. mesh information and
@@ -98,6 +78,11 @@ class PGD:
         return f'{str(self)}'
 
     def eval_fixed_modes(self, sensor_points, fixed_dim, attri):
+        try:
+            from fenicstools import Probes
+        except ModuleNotFoundError as e:
+            LOGGER.error(f'Failed loading fenicstools with error: {e}, required for function all sensor evaluations for speed-up')
+
         _hash = np.sum(sensor_points.flatten())
         if (_hash, fixed_dim, attri) in self._eval_fixed_modes:
             return self._eval_fixed_modes[_hash, fixed_dim, attri]
@@ -563,10 +548,20 @@ class PGD:
             :return eval: evaluated solution for the fixed variable NEW as fenics function (old array at vertex values)
         '''
 
+        # check if given free_dims are ok:
+        if len(free_dim) != self.num_pgd_var - 1:
+            raise ValueError('given variables are missing or to much, free_dim=%s <-> num_pgd_var=%s', free_dim,
+                             self.num_pgd_var - 1)
+
         # check if given coordinates are ok:
         if len(coord) != self.num_pgd_var - 1:
             raise ValueError('given variables are missing or to much, coord=%s <-> num_pgd_var=%s', coord,
                              self.num_pgd_var - 1)
+
+        # check if given free_dims have the same length as given coordinates:
+        if len(free_dim) != len(coord):
+            raise ValueError('Number of free Dimensions and given coordinates are not the same, free_dim=%s <-> coord=%s',
+                             free_dim, coord)
 
         # only possible if freeDims are one dimensional
         for i in range(len(free_dim)):
@@ -667,25 +662,6 @@ class PGD:
                 break
 
         # evaluate fixed dim modes at sensor points
-        # # old implementation not time efficient only for understanding
-        # t1=time.time()
-        # dim1 = len(sensor_points)
-        # dim2 = len(self.mesh[fixed_dim].attributes[attri].interpolationfct[0](sensor_points[0,:]))
-        # eval_array = np.zeros((dim1,dim2))
-        # probes = Probes(sensor_points.flatten(), self.mesh[fixed_dim].attributes[attri].interpolationfct[0].function_space())
-        # for k in range(self.used_numModes): # normally used_numModes == numModes - for easy change
-        #     eval_fct = self.mesh[fixed_dim].attributes[attri].interpolationfct[k]
-        #     tmp =ftool_probe(sensor_points, eval_fct) # values at sensor points for mode in x
-        #     tmp_fac = 1.0
-        #     for i in range(len(free_dim)):  # loop over free Dimensions
-        #         # coord needs right dimension scalar or vector
-        #         faci = self.mesh[free_dim[i]].attributes[attri].interpolationfct[k](coord[i])
-        #         tmp_fac *= faci
-        #     eval_array += tmp * tmp_fac
-        # t2=time.time()
-        # print('eval_array',eval_array,t2-t1)
-
-        # new implementation to speed things up
         # first: fixed modes (usually x) at sensor points:
         # from chache to save time
         eval_fixedmode = self.eval_fixed_modes(sensor_points, fixed_dim, attri)
@@ -695,11 +671,8 @@ class PGD:
         # evaluate free_dim modes at coord
         tmp = np.ones(self.used_numModes)
         for i in range(len(free_dim)):
-            # probes = Probes(coord[i].flatten(), self.mesh[free_dim[i]].attributes[attri].interpolationfct[0].function_space()) # class creation to expensive!!
             tmp_i = np.zeros(self.used_numModes)
             for k in range(self.used_numModes):  # normally used_numModes == numModes - for easy change
-                # probes(self.mesh[free_dim[i]].attributes[attri].interpolationfct[k])
-                # tmp_i = probes.array()
                 tmp_i[k] = self.mesh[free_dim[i]].attributes[attri].interpolationfct[k](coord[i])
             tmp *= tmp_i
 
@@ -1079,37 +1052,6 @@ class PGD:
                     out_k[:, m + 1] = mode_sorted
                 np.savetxt(os.path.join(folder, name % (prefix, attri, self.mesh[k].info[1][1])), out_k, delimiter=',')
 
-    def reconstruct_solution_tensor(self, attri):
-        '''
-            Reconstruct the full tensor of all solution of attribute (attri[integer])
-            stored in the PGD solution: sum kronecker products of PGD modes
-
-            :param  attribute number
-            :return tensor of all solutions
-        '''
-
-        factorPGD = list()
-
-        for i in range(self.num_pgd_var):
-            if self.mesh[i].attributes[attri].field.lower() == 'scalar':
-                # save 1D modes in array
-                tmp = np.zeros((self.mesh[i].numNodes, self.numModes))
-                for k in range(self.numModes):  # fill with 1D modes
-                    tmp[:, k] = self.mesh[i].attributes[attri].data[k][:, 0]
-
-            if self.mesh[i].attributes[attri].field.lower() == 'vector':
-                # vector field will be saved as 1D mode reshape
-                tmp = np.zeros((self.mesh[i].numNodes * 3, self.numModes))
-                for k in range(self.numModes):
-                    vect = self.mesh[i].attributes[attri].data[k].reshape(self.mesh[i].numNodes * 3, 1)
-                    tmp[:, k] = vect[:, 0]
-
-            factorPGD.append(tmp)
-
-        self.logger.info('PGD factors len %i shape %s', len(factorPGD), [f.shape for f in factorPGD])
-        x = tensorly.kruskal_to_tensor(factorPGD)
-        return x
-
 
 class PGDAttribute(object):
 
@@ -1310,7 +1252,7 @@ class PGDErrorComputation(object):
         self.lim_smp = lim_samples
         self.fixed_var = fixed_var
         
-        self.free_dim = [item for item in list(range(0, len(self.PGD_sol.problem.meshes))) if item not in fixed_dim]
+        self.free_dim = [item for item in list(range(0, self.PGD_sol.num_pgd_var)) if item not in fixed_dim]
         
     def sampling_LHS(self):
         
@@ -1361,7 +1303,7 @@ class PGDErrorComputation(object):
             error = np.linalg.norm(residual,2)/np.linalg.norm(u_FOM.reshape(-1),2)
             
         elif isinstance(u_FOM,np.ndarray) and not isinstance(u_PGD,np.ndarray):
-            
+
             residual = u_PGD.compute_vertex_values()[:]-u_FOM.reshape(-1)
             error = np.linalg.norm(residual,2)/np.linalg.norm(u_FOM.reshape(-1),2)
             

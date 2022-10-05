@@ -7,59 +7,76 @@
         attribute 0: U: u(x,E,L)= 1/2A(lae*x-x**2) 1/E  L*n
         attribute 1: sig: sig(x,E,L)=1/2A(lae-2x)  E/E  L*n
 
-        with modes and meshes given as np.arrays
+        with modes and meshes given as np.arrays NO fenics dependency!!
 '''
 import unittest
 import numpy as np
 
-from pgdrome.model import PGD, PGDAttribute, PGDMesh
+from pgdrome.model import PGD, PGDAttribute, PGDMesh, PGDErrorComputation
 
 
-def analytic_u(x, E, L, A, n, lae):
-    ''' Analytic solution of u Stab: u = 1/(2*EA) (-x**2+laen*x) *L*n '''
+class u_analytic():
+    # reference model u analytic
+    # analytic solution of u truss: u = 1/(2*EA) (-x**2+laen*x) *L*n '''
+    # with A:crosssection, E:Emodul, lae: Stablength, x:position, L:loadfactor, n:loadamplitude
+    def __init__(self, x=[], p={}):
+        self.x = x
+        self.param = p
+
+    def __call__(self, values):
+        E=values[0]
+        L=values[1]
+        return 1.0 / 2.0 * 1 / (self.param['A'] * E) * (self.param['lae'] * self.x - self.x ** 2) * L * self.param['n']
+
+class sig_analytic():
+    # reference model sig analytic
+    # Analytic solution of sig truss: E* u'
     # A:crosssection, E:Emodul, lae: Stablength, x:position, L:loadfactor, n:loadamplitude
-    return 1.0 / 2.0 * 1 / (A * E) * (lae * x - x ** 2) * L * n
+    def __init__(self, x=[], p={}):
+        self.x = x
+        self.param = p
+
+    def __call__(self, values):
+        E=values[0]
+        L=values[1]
+        return 1.0 / 2.0 * 1 / (self.param['A']) * (self.param['lae'] - 2 * self.x) * L * self.param['n']
 
 
-def analytic_sig(x, E, L, A, n, lae):
-    ''' Analytic solution of sig Stab: E* u' '''
-    # A:crosssection, E:Emodul, lae: Stablength, x:position, L:loadfactor, n:loadamplitude
-    return 1.0 / 2.0 * 1 / (A) * (lae - 2 * x) * L * n
+
+''' separtion of analytic u analytically --> modes'''
+def analytic_mode_UX(x, param):
+    return 1.0 / (2.0 * param['A']) * (param['lae'] * x - x ** 2)
 
 
-''' separate analytic_u analytically '''
-def analytic_mode_UX(x, A, lae):
-    return 1.0 / (2.0 * A) * (lae * x - x ** 2)
-
-
-def analytic_mode_UE(E):
+def analytic_mode_UE(E, param):
     return 1.0 / E
 
 
-def analytic_mode_UL(L, n):
-    return L * n
+def analytic_mode_UL(L, param):
+    return L * param['n']
 
 
-''' separate analytic_sigma analytically '''
-def analytic_mode_SX(x, A, lae):
-    return 1.0 / (2.0 * A) * (lae - 2 * x)
+''' separation of  analytic sigma analytically  --> modes'''
+def analytic_mode_SX(x, param):
+    return 1.0 / (2.0 * param['A']) * (param['lae'] - 2 * x)
 
 
-def analytic_mode_SE(E):
+def analytic_mode_SE(E, param):
     # return E/E
     return 1.0
 
 
-def analytic_mode_SL(L, n):
-    return L * n
+def analytic_mode_SL(L, param):
+    return L * param['n']
 
 
-def create_example_pgd_solution():
+def create_example_pgd_solution(param):
     '''
         create a special example pgd solution 1D example u(x,E,L)
         PGD CO: x: pysical dim; E: E-modul, L: load factor
         attribute 0: U: u(x,E,L)= 1/2A(lae*x-x**2) 1/E  L*n
         attribute 1: sig: sig(x,E,L)=1/2A(lae-2x)  E/E  L*n
+        with param dict= 'A', 'lae' and 'n'
     '''
     pgdtest = PGD()
     pgdtest.name = 'test'
@@ -97,7 +114,7 @@ def create_example_pgd_solution():
     newAttr.data = list()
     newAttr.data.append(np.zeros((Grid1.numNodes, 1)))  # first mode
     for i in range(Grid1.numNodes):
-        newAttr.data[0][i, 0] = analytic_mode_UX(Grid1.dataX[i], 1, 1)
+        newAttr.data[0][i, 0] = analytic_mode_UX(Grid1.dataX[i], param)
     Attributes.append(newAttr)
     # stress
     newAttr = PGDAttribute()
@@ -107,7 +124,7 @@ def create_example_pgd_solution():
     newAttr.data = list()
     newAttr.data.append(np.zeros((Grid1.numNodes, 1)))  # first mode
     for i in range(Grid1.numNodes):
-        newAttr.data[0][i, 0] = analytic_mode_SX(Grid1.dataX[i], 1, 1)
+        newAttr.data[0][i, 0] = analytic_mode_SX(Grid1.dataX[i], param)
     Attributes.append(newAttr)
 
     Grid1.attributes = Attributes
@@ -141,7 +158,7 @@ def create_example_pgd_solution():
     newAttr.data = list()
     newAttr.data.append(np.zeros((Grid2.numNodes, 1)))  # first mode
     for i in range(Grid2.numNodes):
-        newAttr.data[0][i, 0] = analytic_mode_UE(Grid2.dataX[i])
+        newAttr.data[0][i, 0] = analytic_mode_UE(Grid2.dataX[i],param)
     Attributes.append(newAttr)
     # sigma
     newAttr = PGDAttribute()
@@ -151,7 +168,7 @@ def create_example_pgd_solution():
     newAttr.data = list()
     newAttr.data.append(np.zeros((Grid2.numNodes, 1)))  # first mode
     for i in range(Grid2.numNodes):
-        newAttr.data[0][i, 0] = analytic_mode_SE(Grid2.dataX[i])
+        newAttr.data[0][i, 0] = analytic_mode_SE(Grid2.dataX[i],param)
     Attributes.append(newAttr)
 
     Grid2.attributes = Attributes
@@ -185,7 +202,7 @@ def create_example_pgd_solution():
     newAttr.data = list()
     newAttr.data.append(np.zeros((Grid3.numNodes, 1)))  # first mode
     for i in range(Grid3.numNodes):
-        newAttr.data[0][i, 0] = analytic_mode_UL(Grid3.dataX[i], 1)
+        newAttr.data[0][i, 0] = analytic_mode_UL(Grid3.dataX[i], param)
     Attributes.append(newAttr)
     # sigma
     newAttr = PGDAttribute()
@@ -195,7 +212,7 @@ def create_example_pgd_solution():
     newAttr.data = list()
     newAttr.data.append(np.zeros((Grid3.numNodes, 1)))  # first mode
     for i in range(Grid3.numNodes):
-        newAttr.data[0][i, 0] = analytic_mode_UL(Grid3.dataX[i], 1)
+        newAttr.data[0][i, 0] = analytic_mode_UL(Grid3.dataX[i], param)
     Attributes.append(newAttr)
 
     Grid3.attributes = Attributes
@@ -209,7 +226,10 @@ def create_example_pgd_solution():
 
 class TestPGD(unittest.TestCase):
     def setUp(self):
-        self.pgd = create_example_pgd_solution()
+        # general parameters
+        self.param = {'A':1, 'n':1, 'lae':1}
+
+        self.pgd = create_example_pgd_solution(self.param)
         # self.pgd.print_info()
 
         # set PGD extra coordinates to fixed values for tests
@@ -218,8 +238,8 @@ class TestPGD(unittest.TestCase):
 
         # create analytic solution for tests
         # analytic solution
-        self.u_ana = analytic_u(self.pgd.mesh[0].dataX, self.E, self.L, 1, 1, 1)
-        self.sig_ana = analytic_sig(self.pgd.mesh[0].dataX, self.E, self.L, 1, 1, 1)
+        self.u_ana = u_analytic(x=self.pgd.mesh[0].dataX, p=self.param)([self.E,self.L])
+        self.sig_ana = sig_analytic(x=self.pgd.mesh[0].dataX, p=self.param)([self.E, self.L])
         # print('u_ana for E=%s and L=%s: %s' % (self.E, self.L, self.u_ana))
         # print('sig_ana for E=%s and L=%s: %s' % (self.E, self.L, self.sig_ana))
 

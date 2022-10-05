@@ -34,7 +34,7 @@ conda activate pgdrome
 ```
 * or by hand
 ```
-conda create -n <name> -c conda-forge python=3.8 fenics mshr ipython h5py numpy scipy pytest
+conda create -n <name> -c conda-forge python fenics ipython h5py numpy scipy pytest
 conda activate <name>
 ```
 
@@ -55,7 +55,7 @@ pytest tests
 ```
 
 # note
-* fenicstools (required for some evaluation fct)
+* fenicstools (required for special sensor evaluations install only if required!!!)
 ```
 git clone https://github.com/mikaem/fenicstools.git
 cd fenicstools
@@ -63,11 +63,5 @@ python3 setup.py install
 python3 -m pip install cppimport
 ```
 
-# Unittests & coverage
 
-```
-pytest tests --cov=PGDrome tests
-coverage html
-firefox htmlcov/index.html
-```
 
