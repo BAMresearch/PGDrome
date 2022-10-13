@@ -52,6 +52,7 @@ def create_bc(Vs,dom,param):
 
     return [0, initCond, 0]
 
+
 def problem_assemble_lhs_FDtime(fct_F,var_F,Fs,meshes,dom,param,typ,dim):
     # problem discription left hand side of DGL for each fixed point problem
 
