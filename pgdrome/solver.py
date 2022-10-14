@@ -2,9 +2,9 @@ import logging
 
 import numpy as np
 
-import dolfin
+import scipy as sp
 
-from scipy.sparse import spdiags
+import dolfin
 
 from pgdrome.model import PGD
 
@@ -650,7 +650,7 @@ class PGDProblem:
         fct_F = dolfin.Function(self.V[dim])
 
         # Solve the equation
-        vec = np.linalg.solve(A,B)
+        vec = sp.sparse.linalg.spsolve(A.tocsr(), B)
 
         # Set the DOFs to the solution
         fct_F.vector()[:] = vec
@@ -659,11 +659,10 @@ class PGDProblem:
 # helper function for FD variant
 def FD_matrices(x):
     N = len(x)
-    e = np.ones(N)
 
-    M = spdiags(e, 0, N, N).toarray()
-    D2 = spdiags([e, e, e], [-1, 0, 1], N, N).toarray()
-    D1_up = spdiags([e, e], [-1, 0], N, N).toarray()
+    M = sp.sparse.lil_matrix((N, N))
+    D2 = sp.sparse.lil_matrix((N, N))
+    D1_up = sp.sparse.lil_matrix((N, N))
 
     i = 0
     hp = x[i + 1] - x[i]

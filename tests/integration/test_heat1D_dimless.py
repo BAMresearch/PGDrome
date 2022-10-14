@@ -72,6 +72,7 @@ def problem_assemble_lhs_FDtime(fct_F,var_F,Fs,meshes,dom,param,typ,dim):
             * dolfin.assemble(Fs[2] * Fs[2] * dolfin.dx(meshes[2])) \
             * param['a2'] * param["k"] * param['M_t']
         # add initial condition
+        a = a.tolil()
         a[:, param['bc_idx']] = 0
         a[param['bc_idx'], :] = 0
         a[param['bc_idx'], param['bc_idx']] = 1

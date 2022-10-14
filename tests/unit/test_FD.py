@@ -9,6 +9,7 @@ import unittest
 import dolfin
 import fenics
 import numpy as np
+import scipy as sp
 
 from pgdrome.solver import FD_matrices
 
@@ -80,7 +81,7 @@ class FD_solution():
         Amat[-1,-1] = 1
 
         # solve problem
-        vec_tmp = np.linalg.solve(Amat,Fvec)
+        vec_tmp = sp.sparse.linalg.spsolve(Amat.tocsr(),Fvec)
 
         # add inital condition
         T.vector()[:] = vec_tmp + IC
