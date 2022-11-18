@@ -21,13 +21,12 @@ jobs:
       with:
         environment-file: environment.yml
         mamba-version: "*"
-#        auto-update-conda: false
+        auto-update-conda: false
 #        activate-enviroment: pgdrome
 
     - name: Run tests
       shell: bash -l {0} #new shell
       run: |
-        cd $GITHUB_WORKSPACE/tests/
-        ls
+        python3 -m pip install .
         pytest -W error::UserWarning
 
