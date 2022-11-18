@@ -21,8 +21,8 @@ jobs:
       with:
         environment-file: environment.yml
         mamba-version: "*"
-        auto-update-conda: true
-        activate-enviroment: pgdrome
+#        auto-update-conda: false
+#        activate-enviroment: pgdrome
 
     - name: Run tests
       shell: bash -l {0} #new shell
