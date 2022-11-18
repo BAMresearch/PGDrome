@@ -5,22 +5,24 @@ name: Tests for pgdrome
 on: [push]
 
 jobs:
-  test_model:
-    runs-on: ${{ matrix.operating-system }}
-    strategy:
-      matrix:
-        operating-system: [ubuntu-latest]
+  testing_tests:
+    runs-on: [ubuntu-latest]
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: conda-incubator/setup-miniconda@v2
+    - name: checkout repo
+      uses: actions/checkout@v2
+    - name: setup python
+      uses: actions/setup-python@v2
       with:
-        python-version: latest  # >3.7
-        mamba-version: "*"
-        channels: conda-forge
-        channel-priority: strict
-        auto-update-conda: false
+        python-version: latest
+
+    - name: setup-conda-env
+      uses: conda-incubator/setup-miniconda@v2
+      with:
         environment-file: environment.yml
+        mamba-version: "*"
+        auto-update-conda: true
+        activate-enviroment: pgdrome
 
     - name: Run tests
       shell: bash -l {0} #new shell
