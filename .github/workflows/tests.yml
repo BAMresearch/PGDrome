@@ -28,5 +28,6 @@ jobs:
       shell: bash -l {0} #new shell
       run: |
         cd $GITHUB_WORKSPACE/tests/
+        ls
         pytest -W error::UserWarning
 
