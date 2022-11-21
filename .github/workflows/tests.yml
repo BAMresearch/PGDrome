@@ -23,7 +23,6 @@ jobs:
     - name: Run tests
       shell: bash -l {0} #new shell
       run: |
-#        python3 -m pip install .
         pytest
 
 
