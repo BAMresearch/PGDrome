@@ -37,6 +37,11 @@ conda activate pgdrome
 conda create -n <name> -c conda-forge python fenics ipython h5py numpy scipy pytest
 conda activate <name>
 ```
+* or create the environment within the main project folder
+```
+conda env create --prefix ./conda-env -f environment.yml
+conda activate ./conda-env
+```
 
 # Install module pgdrome
 * Using setup.py
