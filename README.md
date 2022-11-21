@@ -27,18 +27,21 @@ A FEniCS based python module of the Proper Generalized Decomposition (PGD) metho
 # Conda environment with dolfin
 
 * create conda environment with requirements from file
-```
-cd PGDrome
-conda env create -f environment.yml
-conda activate pgdrome
-```
-* or by hand
-```
-conda create -n <name> -c conda-forge python fenics ipython h5py numpy scipy pytest
-conda activate <name>
-```
+  * globally in user miniconda folder
+    ```
+    cd PGDrome
+    conda env create -f environment.yml
+    conda activate pgdrome
+    ```
+  * within main project folder
+    ```
+    cd PGDrome
+    conda env create --prefix ./conda-env -f environment.yml
+    (conda env update --prefix ./conda-env -f environment.yml --prune)
+    conda activate ./conda-env
+    ```
 
-# Install module pgdrome
+# Install module pgdrome in other projects
 * Using setup.py
 ```
 git clone https://github.com/BAMresearch/PGDrome.git
