@@ -1,16 +1,16 @@
-# This workflow will install the enviroment and run tests
+# This workflow will install the enviroment, check for code style and run tests
 
 name: Tests for pgdrome
 
 on: [push]
 
 jobs:
+  # Run tests
   test_model:
     runs-on: ${{ matrix.operating-system }}
     strategy:
       matrix:
         operating-system: [ubuntu-latest]
-
     steps:
     - uses: actions/checkout@v2
     - uses: conda-incubator/setup-miniconda@v2
@@ -25,4 +25,15 @@ jobs:
       run: |
         pytest
 
-
+  # Type checking
+  lint_and_type_check:
+    name: Type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          pip install pre-commit
+      - name: Type check
+        run: |
+          pre-commit run --all-files --verbose --show-diff-on-failure
