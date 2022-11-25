@@ -7,6 +7,7 @@ on: [push]
 jobs:
   # Run tests
   test_model:
+    name: Run tests
     runs-on: ${{ matrix.operating-system }}
     strategy:
       matrix:
@@ -26,7 +27,7 @@ jobs:
         pytest
 
   # Type checking
-  lint_and_type_check:
+  type_check:
     name: Type check
     runs-on: ubuntu-latest
     steps:

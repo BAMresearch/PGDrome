@@ -24,10 +24,8 @@ from pgdrome.solver import PGDProblem, FD_matrices
 
 
 def create_meshes(num_elem, ord, ranges):
-
     meshes = list()
     Vs = list()
-
     dim = len(num_elem)
 
     for i in range(dim):
