@@ -35,6 +35,6 @@ jobs:
       - name: Install dependencies
         run: |
           pip install pre-commit
-      - name: Type check
+      - name: Style and file check
         run: |
           pre-commit run --all-files --verbose --show-diff-on-failure
