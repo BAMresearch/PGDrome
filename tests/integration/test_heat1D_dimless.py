@@ -61,14 +61,7 @@ def problem_assemble_lhs_FDtime(fct_F, var_F, Fs, meshes, dom, param, typ, dim):
     if typ == "r":
         alpha_1 = Fs[1].vector()[:].transpose() @ param["D1_up_t"] @ Fs[1].vector()[:]
         alpha_2 = Fs[1].vector()[:].transpose() @ param["M_t"] @ Fs[1].vector()[:]
-        a = dolfin.Constant(
-            alpha_1 * dolfin.assemble(Fs[2] * Fs[2] * dolfin.dx(meshes[2]))
-        ) * param["a1"] * param["rho"] * param["cp"] * fct_F * var_F * dolfin.dx(
-            meshes[0]
-        ) + dolfin.Constant(
-            alpha_2 * dolfin.assemble(Fs[2] * Fs[2] * dolfin.dx(meshes[2]))
-        ) * param[
-            "a2"
+        a = dolfin.Constant(alpha_1 * dolfin.assemble(Fs[2] * Fs[2] * dolfin.dx(meshes[2]))) * param["a1"] * param["rho"] * param["cp"] * fct_F * var_F * dolfin.dx(            meshes[0]        ) + dolfin.Constant(            alpha_2 * dolfin.assemble(Fs[2] * Fs[2] * dolfin.dx(meshes[2]))        ) * param[            "a2"
         ] * param[
             "k"
         ] * fct_F.dx(
