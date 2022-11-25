@@ -1,4 +1,4 @@
-# This workflow will install the environment, run tests and check for code style and or large files (max kb=100)
+# This workflow will install the environment, run tests and check for code style and large files (max kb=100)
 
 name: Tests for pgdrome
 
