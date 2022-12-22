@@ -355,6 +355,7 @@ def create_PGD(param={}, vs=[], q=None):
 
     print(pgd_prob.simulation_info)
     print("PGD Amplitude", pgd_prob.amplitude)
+    print("PGD num fp it", pgd_prob.num_fp_it)
 
     pgd_s = pgd_prob.return_PGD()  # as PGD class instance
 
