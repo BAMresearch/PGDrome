@@ -106,6 +106,7 @@ class PGDProblem:
         self.PGD_func = []  # solution of solve_PGD
         self.alpha = []  # joined norms of mode sets part of solution
         self.amplitude = []  # amplitude of PGD problem
+        self.num_fp_it = []  # number of fixed point iterations per mode
 
         self.PGD_modes = None
 
@@ -793,6 +794,7 @@ class PGDProblem:
                         n_enr,
                     )
                     self.simulation_info += f"<<<enrichment step {n_enr} fixed point iteration NOT converged in {fpi + 1} / delta: {delta} >>>\n"
+                    self.num_fp_it.append(fpi + 1)
                     # input('press enter to continue')
                     break
                 else:
@@ -802,6 +804,7 @@ class PGDProblem:
                         delta,
                     )
                     self.simulation_info += f"enrichment step {n_enr} fixed point iteration converged in {fpi + 1} / delta: {delta} \n"
+                    self.num_fp_it.append(fpi + 1)
                     break
             elif self.stop_fp.lower() == "norm":
                 # new set of solutions Fs old set of solutions Fs_init compute error after matlab code ghnatios (calc_diff_R(R,Rold))
@@ -842,6 +845,7 @@ class PGDProblem:
                         f"fix point iteration converged !!! in number of steps: {fpi + 1} (error {max_error:8.6e})"
                     )
                     self.simulation_info += f"enrichment step {n_enr} fixed point iteration converged in {fpi + 1} / error: {max_error:8.6e} \n"
+                    self.num_fp_it.append(fpi + 1)
                     break
                 elif fpi < self.max_fp_it - 1:
                     self.logger.debug(
@@ -857,6 +861,7 @@ class PGDProblem:
                         f"ERROR: fix point iteration in maximum number of iterations NOT converged (enrichment loop {n_enr}) (error {max_error:8.6e})"
                     )
                     self.simulation_info += f"<<<enrichment step {n_enr} fixed point iteration NOT converged in {fpi + 1} / error: {max_error:8.6e} >>>\n"
+                    self.num_fp_it.append(fpi + 1)
                     # input('press enter to continue')
                     break
             else:
