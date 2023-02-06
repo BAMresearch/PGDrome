@@ -107,6 +107,7 @@ class PGDProblem:
         self.alpha = []  # joined norms of mode sets part of solution
         self.amplitude = []  # amplitude of PGD problem
         self.num_fp_it = []  # number of fixed point iterations per mode
+        self.err_fp_it = []  # reached accuracy of the fixed point iteration per mode
 
         self.PGD_modes = None
 
@@ -795,6 +796,7 @@ class PGDProblem:
                     )
                     self.simulation_info += f"<<<enrichment step {n_enr} fixed point iteration NOT converged in {fpi + 1} / delta: {delta} >>>\n"
                     self.num_fp_it.append(fpi + 1)
+                    self.err_fp_it.append(delta)
                     # input('press enter to continue')
                     break
                 else:
@@ -805,6 +807,7 @@ class PGDProblem:
                     )
                     self.simulation_info += f"enrichment step {n_enr} fixed point iteration converged in {fpi + 1} / delta: {delta} \n"
                     self.num_fp_it.append(fpi + 1)
+                    self.err_fp_it.append(delta)
                     break
             elif self.stop_fp.lower() == "norm":
                 # new set of solutions Fs old set of solutions Fs_init compute error after matlab code ghnatios (calc_diff_R(R,Rold))
@@ -846,6 +849,7 @@ class PGDProblem:
                     )
                     self.simulation_info += f"enrichment step {n_enr} fixed point iteration converged in {fpi + 1} / error: {max_error:8.6e} \n"
                     self.num_fp_it.append(fpi + 1)
+                    self.err_fp_it.append(max_error)
                     break
                 elif fpi < self.max_fp_it - 1:
                     self.logger.debug(
@@ -862,6 +866,7 @@ class PGDProblem:
                     )
                     self.simulation_info += f"<<<enrichment step {n_enr} fixed point iteration NOT converged in {fpi + 1} / error: {max_error:8.6e} >>>\n"
                     self.num_fp_it.append(fpi + 1)
+                    self.err_fp_it.append(max_error)
                     # input('press enter to continue')
                     break
             else:
