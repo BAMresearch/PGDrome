@@ -1087,7 +1087,7 @@ class problem(unittest.TestCase):
             )  # PGD FEM - FEM
 
         print(errors_FEM1, np.mean(errors_FEM1))
-        print(errors_FEM1, np.mean(errors_FEM2))
+        print(errors_FEM2, np.mean(errors_FEM2))
         self.assertTrue(np.mean(errors_FEM1) < 2e-4)
         self.assertTrue(np.mean(errors_FEM2) < 1e-6)
 
