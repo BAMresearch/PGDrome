@@ -1,4 +1,6 @@
 # PGDrome
+[![Tests for pgdrome](https://github.com/BAMresearch/PGDrome/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/BAMresearch/PGDrome/actions/workflows/tests.yml)
+
 A FEniCS based python module of the Proper Generalized Decomposition (PGD) method. 
 
 # Description
