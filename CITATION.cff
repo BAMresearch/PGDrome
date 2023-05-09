@@ -1,0 +1,27 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: pgdrome
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Annika
+    family-names: Robens-Radermacher
+    email: annika.robens-radermacher@bam.de
+    affiliation: Bundesanstalt für Materialforschung und -prüfung (BAM)
+    orcid: 'https://orcid.org/0000-0001-9653-6085'
+  - given-names: Dominic
+    family-names: Strobl
+    affiliation: Bundesanstalt für Materialforschung und -prüfung
+    email: dominic.strobl@bam.de
+repository-code: 'https://github.com/BAMresearch/PGDrome'
+abstract: >-
+  A FEniCS based python module of the Proper Generalized
+  Decomposition (PGD) method.
+keywords:
+  - reduced order modelling
+  - proper generalized decomposition
+license: MIT
