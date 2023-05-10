@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+
+[project]
+name = "pgdrome"
+version = "0.1.0"
+authors = [
+    {name = "Annika Robens-Radermacher", email = "annika.robens-radermacher@bam.de"},
+]
+
+description = "A FEniCS based python module of the Proper Generalized Decomposition (PGD) method."
+readme = "README.md"
+requires-python = ">=3.6"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+license = {file = "LICENSE"}
+keywords = ["PGD"]
+dependencies = [
+    "numpy>=1.18",
+    "scipy>=1.4",
+    "lxml >=4.5",
+    "h5py >=2.10",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/BAMresearch/PGDrome"
+"Bug Tracker" = "https://github.com/BAMresearch/PGDrome/issues"
+
