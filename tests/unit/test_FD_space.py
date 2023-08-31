@@ -2,7 +2,7 @@
     check FD formulation working within fenics for different boundary conditions
 
     problem \partial²{T}{dx²} = q(x)
-    solve for T with FD matrix and with FEM
+    solve Poisson's equation for T with FD matrix and with FEM
 """
 
 import unittest
@@ -28,24 +28,22 @@ class FD_solution_dirichlet:
         idx_sort = np.argsort(x_dofs)
         _, D2_cent, _ = FD_matrices(self.Vs.tabulate_dof_coordinates()[idx_sort])
 
-        # resort D1
+        # resort D2
         D2 = D2_cent[idx_sort, :][:, idx_sort]
 
         # interpolate right hand side
         Q = dolfin.interpolate(self.q, self.Vs).vector()[:]
 
-        # set up initial condition
+        # set up rhs with boundary condition
         IC = np.zeros(len(Q))
         IC[-1] = 100
         IC[0] = self.param["T_amb"]
 
-        # set up shorted heat equation
+        # set up Poisson's equation
         Amat = -D2
         Fvec = D2 @ IC
 
-        # set matrices for initial condition
-        Fvec[0] = 0
-        Fvec[-1] = 0
+        # set matrices for boundary condition
         Amat[:, 0] = 0
         Amat[0, :] = 0
         Amat[0, 0] = 1
@@ -53,10 +51,13 @@ class FD_solution_dirichlet:
         Amat[-1, :] = 0
         Amat[-1, -1] = 1
 
+        Fvec[0] = 0
+        Fvec[-1] = 0
+
         # solve problem
         vec_tmp = sp.sparse.linalg.spsolve(Amat.tocsr(), Fvec)
 
-        # add inital condition
+        # add boundary condition
         T.vector()[:] = vec_tmp + IC
 
         return T
@@ -79,20 +80,20 @@ class FD_solution_robin:
         # store re_sorted according dofs!
         M = Mx[idx_sort, :][:, idx_sort]
 
-        # resort D1
+        # resort D2
         D2 = D2_cent[idx_sort, :][:, idx_sort]
 
         # interpolate right hand side
         Q = dolfin.interpolate(self.q, self.Vs).vector()[:]
 
-        # set up shorted heat equation
+        # set up Poisson's equation
         Amat = -D2
         Fvec = M @ Q
 
         # define space step size
         dx = x_dofs[0] - x_dofs[1]
 
-        # set matrices for initial condition
+        # set matrices for boundary condition
         Amat[:, 0] = 0
         Amat[0, :] = 0
         Amat[0, 0] = 1 / dx + self.param["h"]
@@ -110,7 +111,7 @@ class FD_solution_robin:
         # solve problem
         vec_tmp = sp.sparse.linalg.spsolve(Amat.tocsr(), Fvec)
 
-        # add inital condition
+        # save solution
         T.vector()[:] = vec_tmp
 
         return T
@@ -189,7 +190,6 @@ class FEM_solution_robin:
         # set up problem
         T = fenics.TrialFunction(self.Vs)
         v = fenics.TestFunction(self.Vs)
-
         T_amb_func = fenics.Function(self.Vs)
         T_amb_func.vector()[:] = self.param["T_amb"] * np.ones(
             len(T_amb_func.vector()[:])
@@ -213,10 +213,10 @@ class FEM_solution_robin:
 class PGDproblem(unittest.TestCase):
     def setUp(self):
         # global parameters
-        self.ord = 1  # has to be one! because of defined mapping from FD matrix Euler!
+        self.ord = 1  # order 1 is enough for these problems
 
-        self.ranges = [0.0, 10]  # time interval
-        self.elem = 200
+        self.ranges = [0.0, 10]  # space interval
+        self.elem = 200  # number of elements
 
         self.param = {
             "T_amb": 25,
@@ -230,10 +230,12 @@ class PGDproblem(unittest.TestCase):
         pass
 
     def test_solver(self):
+        # define mesh, vector space and rhs
         mesh_x = dolfin.IntervalMesh(self.elem, self.ranges[0], self.ranges[1])
         Vs_x = dolfin.FunctionSpace(mesh_x, "CG", self.ord)
         q = dolfin.Constant(1.0)
 
+        # solve Poisson's equation for all approaches
         TFD_dirichlet = FD_solution_dirichlet(
             Vs=Vs_x, meshes=mesh_x, param=self.param, q=q
         ).run()
@@ -266,6 +268,7 @@ class PGDproblem(unittest.TestCase):
             error_robin < 1e-1
         )  # expect up to single percent error for robin bc
 
+        # plot solution if requested
         if self.plotting:
             import matplotlib.pyplot as plt
 
