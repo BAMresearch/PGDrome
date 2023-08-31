@@ -223,8 +223,8 @@ class PGDproblem(unittest.TestCase):
             "h": 15,
         }  # ambient temperature in °C  # heat transfer coefficient in W/(m²°C)
 
-        self.plotting = True
-        # self.plotting = False
+        # self.plotting = True
+        self.plotting = False
 
     def TearDown(self):
         pass
