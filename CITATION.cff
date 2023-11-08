@@ -12,8 +12,9 @@ authors:
     orcid: 'https://orcid.org/0000-0001-9653-6085'
   - given-names: Dominic
     family-names: Strobl
-    affiliation: Bundesanstalt für Materialforschung und -prüfung
     email: dominic.strobl@bam.de
+    affiliation: Bundesanstalt für Materialforschung und -prüfung (BAM)
+    orcid: 'https://orcid.org/0000-0001-8873-7792'
 repository-code: 'https://github.com/BAMresearch/PGDrome'
 abstract: >-
   A FEniCS based python module of the Proper Generalized
