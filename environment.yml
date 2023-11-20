@@ -10,8 +10,3 @@ dependencies:
   - pytest
   - h5py=3.3.0
   - hdf5=1.10.6
-  - pip
-  - pip:
-    - -e .
-    - build
-    - twine
