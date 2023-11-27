@@ -28,4 +28,4 @@ jobs:
           mamba install -y conda-build conda-verify anaconda-client boa
           conda config --set anaconda_upload yes
           cd $GITHUB_WORKSPACE
-          conda-build --token "$ANACONDA_TOKEN" --user bam77 .conda -m .conda/conda_build_config.yaml
+          conda mambabuild --token "$ANACONDA_TOKEN" --user bam77 .conda -m .conda/conda_build_config.yaml
