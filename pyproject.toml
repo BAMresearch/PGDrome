@@ -18,6 +18,7 @@ classifiers = [
 ]
 license = {file = "LICENSE"}
 keywords = ["PGD"]
+dependencies = []
 
 [project.urls]
 "Homepage" = "https://github.com/BAMresearch/PGDrome"
