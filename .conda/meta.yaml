@@ -1,6 +1,9 @@
 {% set name = "pgdrome" %}
 {% set pyproject = load_file_data("../pyproject.toml", from_recipe_dir=true) %}
 {% set version = pyproject.get('project').get('version') %}
+# New release with a tag equal to version (prefixed with v)
+# Example: version = "0.1.1" in pyproject.toml
+# tag --> v0.1.1
 
 package:
   name: "{{ name|lower }}"
