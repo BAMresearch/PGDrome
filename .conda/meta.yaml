@@ -1,0 +1,37 @@
+{% set name = "pgdrome" %}
+{% set pyproject = load_file_data("../pyproject.toml", from_recipe_dir=true) %}
+{% set version = pyproject.get('project').get('version') %}
+# New release with a tag equal to version (prefixed with v)
+# Example: version = "0.1.1" in pyproject.toml
+# tag --> v0.1.1
+
+package:
+  name: "{{ name|lower }}"
+  version: "{{ version }}"
+
+source:
+  url: https://github.com/BAMresearch/PGDrome/archive/refs/tags/v{{ version }}.tar.gz
+
+build:
+  skip: True  # [win or osx]
+  script: {{ PYTHON }} -m pip install . -vv
+  number: 0
+
+requirements:
+  host:
+    - python
+    - pip
+    - setuptools
+
+  run:
+    - fenics ==2019.1.0
+    - numpy >=1.18
+    - scipy >=1.4
+    - h5py ==3.3.0
+    - hdf5 ==1.10.6
+
+about:
+  home: https://github.com/BAMresearch/PGDrome
+  license: MIT
+  license_family: MIT
+  summary: A FEniCS based python module of the Proper Generalized Decomposition (PGD) method.

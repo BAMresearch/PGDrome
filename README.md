@@ -1,5 +1,6 @@
 # PGDrome
 [![Tests for pgdrome](https://github.com/BAMresearch/PGDrome/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/BAMresearch/PGDrome/actions/workflows/tests.yml)
+[![Test conda](https://github.com/BAMresearch/PGDrome/actions/workflows/publish_conda.yml/badge.svg?branch=main)](https://github.com/BAMresearch/PGDrome/actions/workflows/publish_conda.yml)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10075334.svg)](https://doi.org/10.5281/zenodo.10075334)
 
 A FEniCS based python module of the Proper Generalized Decomposition (PGD) method. 
@@ -26,9 +27,23 @@ A FEniCS based python module of the Proper Generalized Decomposition (PGD) metho
 # Requirements
 * A working installation of FEniCS (including DOLFIN python interface).
 * e.g. via conda s. below
- 
-# Conda environment with dolfin
 
+# Install module PGDrome in other projects
+* Direct from conda via
+```
+conda install -c bam77 pgdrome
+```
+* Using setup.py
+```
+git clone https://github.com/BAMresearch/PGDrome.git
+cd PGDrome
+python3 -m pip install -e .
+```
+-e flag creates a symlink instead of copying it. So modifying does not require another installation.
+
+uninstall with `python3 -m pip uninstall PGDrome` 
+
+# Conda environment for development (including dolfin)
 * create conda environment with requirements from file
   * globally in user miniconda folder
     ```
@@ -44,23 +59,13 @@ A FEniCS based python module of the Proper Generalized Decomposition (PGD) metho
     conda activate ./conda-env
     ```
 
-# Install module pgdrome in other projects
-* Using setup.py
-```
-git clone https://github.com/BAMresearch/PGDrome.git
-cd PGDrome
-python3 -m pip install -e .
-```
--e flag creates a symlink instead of copying it. So modifying does not require another installation.
-
-uninstall with `python3 -m pip uninstall PGDrome` 
-
-test with pytest or standalone
+# Tests for development
+Test with pytest or standalone
 ```
 pytest tests
 ```
 
-# note
+# Note
 * fenicstools (required for special sensor evaluations install only if required!!!)
 ```
 git clone https://github.com/mikaem/fenicstools.git

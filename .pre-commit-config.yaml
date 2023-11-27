@@ -6,6 +6,7 @@ repos:
       - id: check-added-large-files
         args: ['--maxkb=100']
       - id: check-yaml
+        exclude: ^.conda/meta.yaml$
 
   # code style checker
   - repo: https://github.com/psf/black
