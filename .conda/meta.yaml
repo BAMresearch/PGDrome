@@ -20,10 +20,9 @@ build:
 requirements:
   host:
     - python
-    - pip
-    - setuptools
 
   run:
+    - python
     - fenics ==2019.1.0
     - numpy >=1.18
     - scipy >=1.4
