@@ -21,6 +21,11 @@ jobs:
         auto-update-conda: true
         environment-file: environment.yml
 
+    - name: Log conda environment
+      shell: bash -l {0}
+      run: |
+        conda list
+
     - name: Run tests
       shell: bash -l {0} #new shell
       run: |
