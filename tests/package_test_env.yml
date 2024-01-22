@@ -1,4 +1,4 @@
-name: pgdrome
+name: pgdrome-package-env
 channels:
   - bam77
   - conda-forge

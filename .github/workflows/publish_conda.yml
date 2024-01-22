@@ -29,3 +29,26 @@ jobs:
           conda config --set anaconda_upload yes
           cd $GITHUB_WORKSPACE
           conda mambabuild --no-test --token "$ANACONDA_TOKEN" --user bam77 .
+
+  conda_package:
+    name: Test deployed package
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          channels: bam77, conda-forge
+          channel-priority: strict
+          auto-update-conda: true
+          environment-file: tests/package_test_env.yml
+
+      - name: Log conda environment
+        shell: bash -l {0}
+        run: |
+          conda list
+
+      - name: Run tests
+        shell: bash -l {0} #new shell
+        run: |
+          pytest
