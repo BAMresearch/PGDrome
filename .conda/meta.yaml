@@ -26,8 +26,8 @@ requirements:
     - fenics ==2019.1.0
     - numpy >=1.18
     - scipy >=1.4
-    - h5py ==3.3.0
     - hdf5 ==1.10.6
+    - h5py 
 
 about:
   home: https://github.com/BAMresearch/PGDrome

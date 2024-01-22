@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 
 [project]
 name = "pgdrome"
-version = "0.1.2b"
+version = "0.1.2d"
 authors = [
     {name = "Annika Robens-Radermacher", email = "annika.robens-radermacher@bam.de"},
 ]
