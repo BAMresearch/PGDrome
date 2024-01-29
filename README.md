@@ -26,7 +26,7 @@ A FEniCS based python module of the Proper Generalized Decomposition (PGD) metho
 
 # PGDrome in other projects
 ### Requirements
-* Python >= v3.7
+* Python >= v3.8
 * A working installation of FEniCS v2019.1.0 (including DOLFIN python interface)
   * Set up e.g. via `conda install -c conda-forge fenics=2019.1.0`
 ### Install module
@@ -46,7 +46,7 @@ uninstall with `python3 -m pip uninstall PGDrome`
 
 # Conda environment for development (including dolfin)
 ### Requirements
-* Python >= v3.7
+* Python >= v3.8
 * A working installation of FEniCS v2019.1.0 (including DOLFIN python interface)
 * Black code style
 * ...
