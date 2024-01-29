@@ -3,14 +3,14 @@ requires = ["setuptools", "wheel"]
 
 [project]
 name = "pgdrome"
-version = "0.1.2b"
+version = "0.1.5"
 authors = [
     {name = "Annika Robens-Radermacher", email = "annika.robens-radermacher@bam.de"},
 ]
 dynamic = ["dependencies"]
 description = "A FEniCS based python module of the Proper Generalized Decomposition (PGD) method."
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",

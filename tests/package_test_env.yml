@@ -1,0 +1,9 @@
+name: pgdrome-package-env
+channels:
+  - bam77
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.7
+  - pgdrome
+  - pytest
