@@ -226,7 +226,6 @@ class PGD:
 
         # put the xdmf files together in one pxdmf file
         with open(os.path.join(folder, self.name + ".pxdmf"), "w") as file_out:
-
             # prefix
             file_out.write(
                 '<?xml version="1.0"?><!--pxdmf written by my own code writePXDMF.py based on my forward_models PGD class-->\n'
@@ -239,7 +238,6 @@ class PGD:
 
             # each grid with its fPGD modes
             for cur_mesh in self.mesh:
-
                 # name
                 file_out.write('    <Grid Name="' + cur_mesh.name + '">\n')
 
@@ -518,7 +516,6 @@ class PGD:
             # PGD Attributes (PGD modes)
             pgd_mesh.attributes = list()
             for elems in PGDs.iter("Attribute"):
-
                 name = get_name(elems.attrib.get("Name"))
 
                 # check if there is already an attribute with this name
@@ -757,15 +754,15 @@ class PGD:
                 coord,
             )
 
-        # only possible if freeDims are one dimensional
-        for i in range(len(free_dim)):
-            if (
-                sum(self.mesh[free_dim[i]].dataY) != 0
-                and sum(self.mesh[free_dim[i]].dataZ) != 0
-            ):
-                raise ValueError(
-                    "free Dimensions are not 1D, interpolation not possible"
-                )
+        # # only possible if freeDims are one dimensional
+        # for i in range(len(free_dim)):
+        #     if (
+        #         sum(self.mesh[free_dim[i]].dataY) != 0
+        #         and sum(self.mesh[free_dim[i]].dataZ) != 0
+        #     ):
+        #         raise ValueError(
+        #             "free Dimensions are not 1D, interpolation not possible"
+        #         )
 
         # check if attri is possible
         if attri >= len(self.mesh[fixed_dim].attributes):
@@ -1054,7 +1051,6 @@ class PGD:
             max_norm = max(normed)
 
         else:  # default with fenics functions
-
             if new.function_space().mesh().geometry().dim() == 1:
                 raise ValueError("Function is 1D use evaluate_max instead!!")
             elif new.function_space().mesh().geometry().dim() > 1:
@@ -1702,7 +1698,6 @@ class PGDErrorComputation(object):
         ]
 
     def sampling_LHS(self):
-
         """Sampling is done using Latin Hypercube sampling method"""
 
         # Initialize
@@ -1715,10 +1710,8 @@ class PGDErrorComputation(object):
         ind = 0
 
         if not self.lim_smp:
-
             for i in self.free_dim:
                 if len(self.PGD_sol.problem.meshes[i].coordinates()[0]) == 1:
-
                     min_bnd[ind] = float(
                         min(self.PGD_sol.problem.meshes[i].coordinates())
                     )  # Minimum boundary
@@ -1743,18 +1736,15 @@ class PGDErrorComputation(object):
         return data_test
 
     def compute_SampleError(self, u_FOM, u_PGD):
-
         """The error between the Full-Order Model (Analytical, FEM etc.)
         and PGD solution is computed at the selected snapshots. The normalized
         error is computed using the norm2 and normalized"""
 
         if isinstance(u_FOM, np.ndarray) and isinstance(u_PGD, np.ndarray):
-
             residual = u_PGD.reshape(-1) - u_FOM.reshape(-1)
             error = np.linalg.norm(residual, 2) / np.linalg.norm(u_FOM.reshape(-1), 2)
 
         elif isinstance(u_FOM, np.ndarray) and not isinstance(u_PGD, np.ndarray):
-
             residual = u_PGD.compute_vertex_values()[:] - u_FOM.reshape(-1)
             error = np.linalg.norm(residual, 2) / np.linalg.norm(u_FOM.reshape(-1), 2)
 
@@ -1766,7 +1756,6 @@ class PGDErrorComputation(object):
         return error
 
     def evaluate_error(self):
-
         # Sampling:
         if not self.data_test:
             self.data_test = self.sampling_LHS()
@@ -1783,7 +1772,6 @@ class PGDErrorComputation(object):
 
         # Compute error
         for i in range(len(self.data_test)):
-
             # FEM solution:
             # -----------------------------------
             if self.FOM_sol:
