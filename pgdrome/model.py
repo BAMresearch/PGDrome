@@ -757,15 +757,15 @@ class PGD:
                 coord,
             )
 
-        # only possible if freeDims are one dimensional
-        for i in range(len(free_dim)):
-            if (
-                sum(self.mesh[free_dim[i]].dataY) != 0
-                and sum(self.mesh[free_dim[i]].dataZ) != 0
-            ):
-                raise ValueError(
-                    "free Dimensions are not 1D, interpolation not possible"
-                )
+        # # only possible if free_dims are one dimensional
+        # for i in range(len(free_dim)):
+        #     if (
+        #         sum(self.mesh[free_dim[i]].dataY) != 0
+        #         and sum(self.mesh[free_dim[i]].dataZ) != 0
+        #     ):
+        #         raise ValueError(
+        #             "free Dimensions are not 1D, interpolation not possible"
+        #         )
 
         # check if attri is possible
         if attri >= len(self.mesh[fixed_dim].attributes):
