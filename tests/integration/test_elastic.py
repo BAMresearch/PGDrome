@@ -279,7 +279,7 @@ def main(vs, writeFlag=False, name=None):
         pgd_s.write_hdf5(folder)
         pgd_s.write_pxdmf(folder)
 
-    return pgd_s
+    return pgd_s, param
 
 
 class FOM_solution:
@@ -333,7 +333,7 @@ class PGDproblem(unittest.TestCase):
         # ----------------------------------------------------------------------
 
         # solve PGD problem
-        pgd_test = main(vs, writeFlag=self.write, name="PGDsolution_O%i" % self.ord)
+        pgd_test, param = main(vs, writeFlag=self.write, name="PGDsolution_O%i" % self.ord)
 
         # Solve Full-order model: FEM
         fun_FOM = FOM_solution(meshes=meshes, x=meshes[0].coordinates())
@@ -351,6 +351,29 @@ class PGDproblem(unittest.TestCase):
         print("Max. error", max_error1)
 
         self.assertTrue(mean_error1 < 1e-4)
+
+        # check residuum for given parameter values
+        Pfixed = 3.0 #-1:3
+        Efixed = 2.0 #0.2:2.0
+        u_pgd = pgd_test.evaluate(0, [1, 2], [Pfixed, Efixed], 0)
+
+        def a(_v,_u,_E,_param):
+            return _v.dx(0) * _E * _param["E_0"] * _u.dx(0) * _param["A"] * dolfin.dx()
+
+        def l(_v,_P,_param):
+            return _v * _P * _param["p_0"] * _param["A"] * _param["A"] * dolfin.dx()
+        
+        UPGD = dolfin.interpolate(u_pgd, vs[0])
+        VPGD = dolfin.TestFunction(vs[0])
+        res = dolfin.assemble(a(VPGD,UPGD,Efixed,param) - l(VPGD,Pfixed,param))
+        # apply boundary conditions        
+        bcs = create_bc(vs, 0, param)
+        for bc in bcs[0]: 
+            bc.apply(res, UPGD.vector())
+
+        print('***residuum norm',res.norm('l2'))
+        
+
 
         # Compute error at ONE point of the fixed variable:
         # ----------------------------------------------------------------------
